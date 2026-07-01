@@ -427,7 +427,7 @@ export default function App() {
       <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-teal-500/10 rounded-full mix-blend-screen filter blur-3xl opacity-30 pointer-events-none" />
 
       {/* Main Split Grid (Figma Design Layout) */}
-      <div className="max-w-6xl w-full lg:grid lg:grid-cols-12 lg:gap-8 lg:items-center z-10">
+      <div className="max-w-6xl w-full h-full flex flex-col lg:grid lg:grid-cols-12 lg:gap-8 lg:items-center z-10">
 
         {/* Left Side: Product Specifications (Friendly guide for all ages, highly accessible) */}
         <div className="hidden lg:flex lg:col-span-6 flex-col justify-center space-y-6 pr-6">
@@ -467,7 +467,7 @@ export default function App() {
         </div>
 
         {/* Right Side: High Fidelity Mobile Viewport Frame */}
-        <div className="col-span-1 lg:col-span-6 flex justify-center w-full h-full lg:h-auto">
+        <div className="flex-1 flex justify-center w-full h-full lg:col-span-6 lg:h-auto min-h-0">
 
           {/* Outer Mobile Mockup Bezel Frame */}
           <div className={`w-full h-full lg:max-w-[412px] lg:min-h-[820px] lg:h-[860px] lg:rounded-[48px] lg:border-8 lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.55)] relative overflow-hidden flex flex-col ${darkMode ? 'bg-slate-950 lg:border-slate-850' : 'bg-slate-50 lg:border-slate-200'}`}>
