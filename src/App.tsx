@@ -470,7 +470,7 @@ export default function App() {
         <div className="col-span-1 lg:col-span-6 flex justify-center w-full h-full lg:h-auto">
 
           {/* Outer Mobile Mockup Bezel Frame */}
-          <div className={`w-full h-[100dvh] lg:max-w-[412px] lg:min-h-[820px] lg:h-[860px] lg:rounded-[48px] lg:border-8 lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.55)] relative overflow-hidden flex flex-col ${darkMode ? 'bg-slate-950 lg:border-slate-850' : 'bg-slate-50 lg:border-slate-200'}`}>
+          <div className={`w-full min-h-screen lg:max-w-[412px] lg:min-h-[820px] lg:h-[860px] lg:rounded-[48px] lg:border-8 lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.55)] relative overflow-hidden flex flex-col ${darkMode ? 'bg-slate-950 lg:border-slate-850' : 'bg-slate-50 lg:border-slate-200'}`}>
 
             {/* Dynamic Island Screen Camera Notch */}
             <div className="hidden lg:flex lg:absolute top-2.5 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-950 dark:bg-slate-900/90 rounded-full z-50 items-center justify-center border border-white/5 shadow-inner">
