@@ -183,46 +183,54 @@ export default function OwnerDashboardView({
       </motion.div>
 
       {/* Corporate Summary Cards Grid */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {/* Supervisors Card */}
-        <div className={`p-3 rounded-2xl border transition-all-300 flex flex-col justify-between ${
+        <div className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between ${
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
         }`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">People</span>
-            <Users className="w-3.5 h-3.5 text-blue-500" />
+            <span className="text-xs font-bold text-slate-400">Staff</span>
+            <div className="p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <Users className="w-4 h-4 text-blue-500" />
+            </div>
           </div>
-          <div className="mt-2">
-            <div className="text-lg font-bold font-mono">{supervisors.length}</div>
-            <span className="text-[10px] text-slate-400 font-semibold">Staff on duty</span>
-          </div>
-        </div>
-
-        {/* Expenses Card */}
-        <div className={`p-3 rounded-2xl border transition-all-300 flex flex-col justify-between ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 font-sans">Spent Total</span>
-            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
-          </div>
-          <div className="mt-2">
-            <div className="text-lg font-bold font-mono text-red-500">Rs. {totalSpent.toLocaleString()}</div>
-            <span className="text-[10px] text-slate-400 font-semibold">Approved purchases</span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold font-display">{supervisors.length}</div>
+            <span className="text-[10px] text-slate-400 font-medium">On duty</span>
           </div>
         </div>
 
         {/* Pending Approval Card */}
-        <div className={`p-3 rounded-2xl border transition-all-300 flex flex-col justify-between ${
+        <div className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between ${
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
         }`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Requests</span>
-            <Clock className="w-3.5 h-3.5 text-amber-500" />
+            <span className="text-xs font-bold text-slate-400">Pending</span>
+            <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <Clock className="w-4 h-4 text-amber-500" />
+            </div>
           </div>
-          <div className="mt-2">
-            <div className="text-lg font-bold font-mono text-amber-500">Rs. {totalPending.toLocaleString()}</div>
-            <span className="text-[10px] text-slate-400 font-semibold">Waiting for approval</span>
+          <div className="mt-3">
+            <div className="text-2xl font-bold font-display text-amber-500">
+              Rs. {totalPending >= 1000 ? (totalPending / 1000).toFixed(1) + 'k' : totalPending}
+            </div>
+            <span className="text-[10px] text-slate-400 font-medium">To approve</span>
+          </div>
+        </div>
+
+        {/* Expenses Card (Full Width) */}
+        <div className={`col-span-2 p-4 rounded-[20px] border shadow-sm transition-all-300 flex items-center justify-between ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-bold text-slate-400">Total Spent</span>
+            </div>
+            <div className="text-2xl font-bold font-display text-red-500">Rs. {totalSpent.toLocaleString()}</div>
+            <span className="text-[10px] text-slate-400 font-medium">Approved purchases</span>
+          </div>
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl">
+             <TrendingDown className="w-6 h-6 text-red-500" />
           </div>
         </div>
       </div>

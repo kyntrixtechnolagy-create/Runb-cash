@@ -420,7 +420,7 @@ export default function App() {
   };
 
   return (
-    <div className={`relative min-h-screen w-full flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#0B1C2C] text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
+    <div className={`fixed inset-0 w-full h-[100dvh] lg:h-auto lg:relative lg:min-h-screen flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#0B1C2C] text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
       }`}>
       {/* Decorative radial background glowing nodes */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full mix-blend-screen filter blur-3xl opacity-30 pointer-events-none" />
@@ -470,7 +470,7 @@ export default function App() {
         <div className="col-span-1 lg:col-span-6 flex justify-center w-full h-full lg:h-auto">
 
           {/* Outer Mobile Mockup Bezel Frame */}
-          <div className={`w-full min-h-screen lg:max-w-[412px] lg:min-h-[820px] lg:h-[860px] lg:rounded-[48px] lg:border-8 lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.55)] relative overflow-hidden flex flex-col ${darkMode ? 'bg-slate-950 lg:border-slate-850' : 'bg-slate-50 lg:border-slate-200'}`}>
+          <div className={`w-full h-full lg:max-w-[412px] lg:min-h-[820px] lg:h-[860px] lg:rounded-[48px] lg:border-8 lg:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.55)] relative overflow-hidden flex flex-col ${darkMode ? 'bg-slate-950 lg:border-slate-850' : 'bg-slate-50 lg:border-slate-200'}`}>
 
             {/* Dynamic Island Screen Camera Notch */}
             <div className="hidden lg:flex lg:absolute top-2.5 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-950 dark:bg-slate-900/90 rounded-full z-50 items-center justify-center border border-white/5 shadow-inner">
