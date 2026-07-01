@@ -1,0 +1,795 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import {
+  Wallet,
+  Users,
+  TrendingDown,
+  ArrowUpRight,
+  ChevronRight,
+  Plus,
+  Coins,
+  Check,
+  X,
+  Clock,
+  ExternalLink,
+  DollarSign,
+  Edit2,
+  Phone,
+  Mail,
+  Briefcase,
+  Save
+} from 'lucide-react';
+import { User, SupervisorBalance, Transaction } from '../types';
+
+interface OwnerDashboardViewProps {
+  user: User;
+  supervisors: User[];
+  balances: SupervisorBalance[];
+  transactions: Transaction[];
+  darkMode: boolean;
+  onAllocateCash: (supervisorId: string, amount: number, notes: string) => void;
+  onAddSupervisor: (name: string, email: string, password: string, designation: string, phone: string) => void;
+  onReviewTransaction: (id: string, status: 'APPROVED' | 'REJECTED') => void;
+  onViewTransactionDetails: (tx: Transaction) => void;
+  onEditStaff: (id: string, name: string, designation: string, phone: string) => void;
+}
+
+export default function OwnerDashboardView({
+  user,
+  supervisors,
+  balances,
+  transactions,
+  darkMode,
+  onAllocateCash,
+  onAddSupervisor,
+  onReviewTransaction,
+  onViewTransactionDetails,
+  onEditStaff
+}: OwnerDashboardViewProps) {
+  const [showAllocateModal, setShowAllocateModal] = useState(false);
+  const [showAddSupModal, setShowAddSupModal] = useState(false);
+
+  // Form states for Allocating Cash
+  const [allocSupId, setAllocSupId] = useState('');
+  const [allocAmount, setAllocAmount] = useState('');
+  const [allocNotes, setAllocNotes] = useState('');
+
+  // Form states for Adding Supervisor
+  const [newSupName, setNewSupName] = useState('');
+  const [newSupEmail, setNewSupEmail] = useState('');
+  const [newSupPassword, setNewSupPassword] = useState('');
+  const [newSupDesig, setNewSupDesig] = useState('');
+  const [newSupPhone, setNewSupPhone] = useState('');
+
+  // Edit Staff state
+  const [editingStaff, setEditingStaff] = useState<User | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesig, setEditDesig] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const openEditModal = (s: User) => {
+    setEditingStaff(s);
+    setEditName(s.name);
+    setEditDesig(s.designation || '');
+    setEditPhone(s.phone || '');
+  };
+
+  const handleEditSave = () => {
+    if (!editingStaff) return;
+    setIsSavingEdit(true);
+    onEditStaff(editingStaff.id, editName, editDesig, editPhone);
+    setTimeout(() => { setIsSavingEdit(false); setEditingStaff(null); }, 800);
+  };
+
+  // Compute stats
+  const masterTreasury = 0; // Dynamic treasury to be implemented later
+  const totalAllocated = balances.reduce((sum, b) => sum + b.allocatedCash, 0);
+  const totalSpent = transactions
+    .filter((t) => t.type === 'EXPENSE' && t.status === 'APPROVED')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalPending = transactions
+    .filter((t) => t.type === 'EXPENSE' && t.status === 'PENDING')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const remainingTreasury = masterTreasury;
+  const supervisorRemaining = balances.reduce((sum, b) => sum + b.remainingCash, 0);
+  const liveTotalLiquidValue = remainingTreasury + supervisorRemaining;
+
+  // Filter pending approvals
+  const pendingTransactions = transactions.filter((t) => t.status === 'PENDING');
+
+  const handleAllocateSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!allocSupId || !allocAmount || Number(allocAmount) <= 0) return;
+    onAllocateCash(allocSupId, Number(allocAmount), allocNotes || 'Budget Top-up');
+    setShowAllocateModal(false);
+    setAllocSupId('');
+    setAllocAmount('');
+    setAllocNotes('');
+  };
+
+  const handleAddSupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSupName || !newSupEmail || !newSupDesig || !newSupPassword) return;
+    onAddSupervisor(newSupName, newSupEmail, newSupPassword, newSupDesig, newSupPhone);
+    setShowAddSupModal(false);
+    setNewSupName('');
+    setNewSupEmail('');
+    setNewSupPassword('');
+    setNewSupDesig('');
+    setNewSupPhone('');
+  };
+
+  // Mock data for weekly chart
+  const weeklyFlowData = [
+    { label: 'Mon', income: 5000, expense: 1200 },
+    { label: 'Tue', income: 0, expense: 2500 },
+    { label: 'Wed', income: 3000, expense: 800 },
+    { label: 'Thu', income: 0, expense: 1500 },
+    { label: 'Fri', income: 10000, expense: 4100 },
+    { label: 'Sat', income: 0, expense: 600 },
+    { label: 'Sun', income: 2000, expense: 930 }
+  ];
+
+  // SVG dimensions for chart
+  const chartHeight = 80;
+  const chartWidth = 320;
+  const maxVal = 12000;
+
+  return (
+    <div className="flex-1 overflow-y-auto no-scrollbar pb-24 p-4 space-y-5">
+      {/* Welcome Card & Real-time Balance */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-[24px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden"
+      >
+        {/* Subtle decorative circles */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10" />
+        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8" />
+
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h3 className="text-xs font-bold tracking-wide uppercase text-blue-100 font-sans">Total Business Money Available</h3>
+            <h2 className="text-3xl font-display font-bold tracking-tight mt-1">
+              Rs. {liveTotalLiquidValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </h2>
+          </div>
+          <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
+            <Wallet className="w-5 h-5 text-teal-300" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 border-t border-white/15 pt-4 mt-4">
+          <div>
+            <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wide">Safe Box (Main Fund)</div>
+            <div className="text-base font-bold font-mono text-white mt-0.5">
+              Rs. {remainingTreasury.toLocaleString()}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wide">Money with Staff</div>
+            <div className="text-base font-bold font-mono text-white mt-0.5">
+              Rs. {supervisorRemaining.toLocaleString()}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Corporate Summary Cards Grid */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Supervisors Card */}
+        <div className={`p-3 rounded-2xl border transition-all-300 flex flex-col justify-between ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">People</span>
+            <Users className="w-3.5 h-3.5 text-blue-500" />
+          </div>
+          <div className="mt-2">
+            <div className="text-lg font-bold font-mono">{supervisors.length}</div>
+            <span className="text-[10px] text-slate-400 font-semibold">Staff on duty</span>
+          </div>
+        </div>
+
+        {/* Expenses Card */}
+        <div className={`p-3 rounded-2xl border transition-all-300 flex flex-col justify-between ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 font-sans">Spent Total</span>
+            <TrendingDown className="w-3.5 h-3.5 text-red-500" />
+          </div>
+          <div className="mt-2">
+            <div className="text-lg font-bold font-mono text-red-500">Rs. {totalSpent.toLocaleString()}</div>
+            <span className="text-[10px] text-slate-400 font-semibold">Approved purchases</span>
+          </div>
+        </div>
+
+        {/* Pending Approval Card */}
+        <div className={`p-3 rounded-2xl border transition-all-300 flex flex-col justify-between ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400">Requests</span>
+            <Clock className="w-3.5 h-3.5 text-amber-500" />
+          </div>
+          <div className="mt-2">
+            <div className="text-lg font-bold font-mono text-amber-500">Rs. {totalPending.toLocaleString()}</div>
+            <span className="text-[10px] text-slate-400 font-semibold">Waiting for approval</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Action Hub */}
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">What do you want to do?</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => setShowAllocateModal(true)}
+            className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition-all-300 shadow-md shadow-blue-500/10 active:scale-95 cursor-pointer"
+          >
+            <Coins className="w-4 h-4" />
+            <span>Send Money to a Staff</span>
+          </button>
+          <button
+            onClick={() => setShowAddSupModal(true)}
+            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${
+              darkMode
+                ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
+            }`}
+          >
+            <Plus className="w-4 h-4 text-teal-500" />
+            <span>Register a New Staff</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Interactive Micro-Chart */}
+      <div className={`p-4 rounded-3xl border transition-all-300 ${
+        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+      }`}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Weekly Money History</h4>
+            <p className="text-[11px] text-slate-400 mt-0.5">Money sent to staff vs actual field purchases</p>
+          </div>
+          <div className="flex items-center gap-2.5 text-[10px] font-bold">
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-brand-blue" /> Sent Out
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500" /> Spent
+            </span>
+          </div>
+        </div>
+
+        {/* Custom SVG Bar Chart */}
+        <div className="flex items-end justify-between h-24 pt-2">
+          {weeklyFlowData.map((d, i) => {
+            const allocHeight = (d.income / maxVal) * chartHeight;
+            const expHeight = (d.expense / maxVal) * chartHeight;
+
+            return (
+              <div key={i} className="flex flex-col items-center flex-1 space-y-1">
+                <div className="flex items-end justify-center gap-1 h-20 w-full relative group">
+                  {/* Allocation Bar */}
+                  <div
+                    style={{ height: `${Math.max(allocHeight, 2)}px` }}
+                    className="w-2.5 bg-gradient-to-t from-brand-blue to-brand-blue/80 rounded-t-sm transition-all duration-300 group-hover:opacity-90"
+                    title={`Allocated: Rs. ${d.income}`}
+                  />
+                  {/* Expense Bar */}
+                  <div
+                    style={{ height: `${Math.max(expHeight, 2)}px` }}
+                    className="w-2.5 bg-gradient-to-t from-red-500 to-orange-400 rounded-t-sm transition-all duration-300 group-hover:opacity-90"
+                    title={`Spent: Rs. ${d.expense}`}
+                  />
+
+                  {/* Micro Tooltip */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[8px] rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 font-mono shadow-md">
+                    +{d.income} | -{d.expense}
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-400">{d.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Pending Reviews / Claims (Owner Duty) */}
+      {pendingTransactions.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Needs Your Approval</h4>
+            <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold">
+              {pendingTransactions.length} TO REVIEW
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {pendingTransactions.map((tx) => (
+              <motion.div
+                key={tx.id}
+                layoutId={tx.id}
+                className={`p-3.5 rounded-2xl border transition-all-300 flex flex-col gap-3 ${
+                  darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-xs">
+                      {tx.category[0]}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.category}</div>
+                      <div className="text-sm font-bold mt-0.5 line-clamp-1">{tx.description}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">By {tx.supervisorName} • {tx.date}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold font-mono text-red-500">-${tx.amount.toLocaleString()}</div>
+                    {tx.receiptUrl && (
+                      <button
+                        onClick={() => onViewTransactionDetails(tx)}
+                        className="text-[10px] text-blue-500 font-semibold hover:underline mt-1 inline-flex items-center gap-0.5 cursor-pointer"
+                      >
+                        <span>Receipt</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Audit Action Buttons */}
+                <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5">
+                  <button
+                    onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
+                    className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Approve Purchase</span>
+                  </button>
+                  <button
+                    onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
+                    className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${
+                      darkMode
+                        ? 'border-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400'
+                        : 'border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500'
+                    }`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Decline / Reject</span>
+                  </button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Supervisors Budget Tracker */}
+      <div className="space-y-2">
+        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Staff Spending Limits</h4>
+        <div className="space-y-2.5">
+          {balances.map((b) => {
+            const usagePercent = Math.min((b.spentCash / b.allocatedCash) * 100, 100);
+            const isCritical = usagePercent > 80;
+
+            return (
+              <div
+                key={b.supervisorId}
+                className={`p-3.5 rounded-2xl border transition-all-300 ${
+                  darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold">{b.supervisorName}</span>
+                  </div>
+                  <span className="text-xs font-bold font-mono">
+                    Rs. {b.remainingCash.toLocaleString()} <span className="text-slate-400 font-normal text-[10px]">left of overall Rs. {b.allocatedCash.toLocaleString()}</span>
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    style={{ width: `${usagePercent}%` }}
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      isCritical
+                        ? 'bg-gradient-to-r from-red-500 to-orange-500'
+                        : usagePercent > 50
+                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                        : 'bg-gradient-to-r from-teal-500 to-blue-500'
+                    }`}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between mt-2.5 text-[10px] text-slate-400 font-semibold">
+                  <span>Spent: Rs. {b.spentCash.toLocaleString()} ({Math.round(usagePercent)}%)</span>
+                  <button
+                    onClick={() => {
+                      setAllocSupId(b.supervisorId);
+                      setShowAllocateModal(true);
+                    }}
+                    className="text-blue-500 font-bold flex items-center gap-0.5 hover:underline cursor-pointer"
+                  >
+                    <span>Send Money</span>
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ══ ALL STAFF DETAILS ══ */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">All Staff Details</h4>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+            darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'
+          }`}>{supervisors.length} members</span>
+        </div>
+
+        {supervisors.length === 0 ? (
+          <div className={`p-5 rounded-2xl border text-center ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
+            <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-xs text-slate-400 font-semibold">No staff registered yet.</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Use "Register a New Staff" to add your team.</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {supervisors.map((s) => {
+              const bal = balances.find((b) => b.supervisorId === s.id);
+              return (
+                <motion.div
+                  key={s.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`p-4 rounded-2xl border transition-all-300 ${
+                    darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    {/* Avatar + Name */}
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <img
+                        src={s.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`}
+                        alt={s.name}
+                        className="w-11 h-11 rounded-full object-cover border-2 border-teal-500/40 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold truncate">{s.name}</div>
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide truncate">{s.designation || 'Staff'}</div>
+                      </div>
+                    </div>
+                    {/* Edit Button */}
+                    <button
+                      onClick={() => openEditModal(s)}
+                      className="p-2 rounded-xl bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 transition-colors shrink-0 cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Details Row */}
+                  <div className="mt-3 space-y-1.5 text-[11px] text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{s.email}</span>
+                    </div>
+                    {s.phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{s.phone}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Balance Chips */}
+                  {bal && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex gap-2">
+                      <div className={`flex-1 rounded-xl p-2 text-center ${
+                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                      }`}>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Given</div>
+                        <div className="text-xs font-bold font-mono text-blue-500 mt-0.5">Rs. {bal.allocatedCash.toLocaleString()}</div>
+                      </div>
+                      <div className={`flex-1 rounded-xl p-2 text-center ${
+                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                      }`}>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Spent</div>
+                        <div className="text-xs font-bold font-mono text-red-500 mt-0.5">Rs. {bal.spentCash.toLocaleString()}</div>
+                      </div>
+                      <div className={`flex-1 rounded-xl p-2 text-center ${
+                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                      }`}>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Left</div>
+                        <div className="text-xs font-bold font-mono text-teal-500 mt-0.5">Rs. {bal.remainingCash.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ══ EDIT STAFF MODAL ══ */}
+      {editingStaff && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+            }`}
+          >
+            <button
+              onClick={() => setEditingStaff(null)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <img
+                src={editingStaff.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(editingStaff.name)}&background=random`}
+                alt={editingStaff.name}
+                className="w-12 h-12 rounded-full object-cover border-2 border-teal-500"
+              />
+              <div>
+                <h3 className="text-base font-bold font-display">Edit Staff Info</h3>
+                <p className="text-xs text-slate-400">{editingStaff.email}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Full Name</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                  }`}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Job Title</label>
+                <input
+                  type="text"
+                  value={editDesig}
+                  onChange={(e) => setEditDesig(e.target.value)}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                  }`}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Phone Number</label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                  }`}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleEditSave}
+              disabled={isSavingEdit}
+              className="w-full mt-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-teal-500/20 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              {isSavingEdit ? 'Saving...' : 'Save Changes'}
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ALLOCATE CASH MODAL DIALOG */}
+      {showAllocateModal && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+            }`}
+          >
+            <button
+              onClick={() => setShowAllocateModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold font-display mb-1">Send Money to a Staff</h3>
+            <p className="text-xs text-slate-400 mb-4 font-semibold">Send money directly from your main vault to a staff's pocket fund.</p>
+
+            <form onSubmit={handleAllocateSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Select a Staff</label>
+                <select
+                  value={allocSupId}
+                  onChange={(e) => setAllocSupId(e.target.value)}
+                  className={`w-full p-2.5 text-xs font-bold rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                  required
+                >
+                  <option value="">-- Click to select a person --</option>
+                  {supervisors.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.designation})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400">How much money? (Rs. Rupees)</label>
+                <div className="relative">
+                  <div className="absolute left-3 top-2 text-slate-400 font-mono text-sm">Rs.</div>
+                  <input
+                    type="number"
+                    placeholder="1500"
+                    value={allocAmount}
+                    onChange={(e) => setAllocAmount(e.target.value)}
+                    className={`w-full py-2 pl-10 pr-3 text-sm rounded-xl border outline-none font-semibold ${
+                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
+                    min="1"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400">Write a short note for why you are sending this</label>
+                <input
+                  type="text"
+                  placeholder="For example: Weekly spending money"
+                  value={allocNotes}
+                  onChange={(e) => setAllocNotes(e.target.value)}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none font-medium ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-lg shadow-blue-500/25 mt-2 cursor-pointer"
+              >
+                Send Money Now
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ADD SUPERVISOR MODAL DIALOG */}
+      {showAddSupModal && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+            }`}
+          >
+            <button
+              onClick={() => setShowAddSupModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <h3 className="text-lg font-bold font-display mb-1">Register a New Staff</h3>
+            <p className="text-xs text-slate-400 mb-4 font-semibold">Enter their details below to set up an account.</p>
+
+            <form onSubmit={handleAddSupSubmit} className="space-y-4.5">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400">First and Last Name</label>
+                <input
+                  type="text"
+                  placeholder="Robert Carter"
+                  value={newSupName}
+                  onChange={(e) => setNewSupName(e.target.value)}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400">Email Address</label>
+                <input
+                  type="email"
+                  placeholder="robert.carter@buildcorp.com"
+                  value={newSupEmail}
+                  onChange={(e) => setNewSupEmail(e.target.value)}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400">Account Password</label>
+                <input
+                  type="text"
+                  placeholder="Secret password for staff"
+                  value={newSupPassword}
+                  onChange={(e) => setNewSupPassword(e.target.value)}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400">Job Title / Role</label>
+                <input
+                  type="text"
+                  placeholder="Warehouse Inventory Lead"
+                  value={newSupDesig}
+                  onChange={(e) => setNewSupDesig(e.target.value)}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                  }`}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400">Phone Number</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="+1 (555) 012-3456"
+                    value={newSupPhone}
+                    onChange={(e) => setNewSupPhone(e.target.value)}
+                    className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
+                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors shadow-lg shadow-teal-500/25 mt-2 cursor-pointer"
+              >
+                Create Account
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}

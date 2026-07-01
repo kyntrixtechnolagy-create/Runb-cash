@@ -1,0 +1,6 @@
+{
+  "name": "Petty Cash Manager",
+  "description": "A premium, modern, and visually stunning mobile-first Supervisor Petty Cash Management System.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
