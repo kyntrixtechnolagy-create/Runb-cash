@@ -420,7 +420,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen w-full flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 ${darkMode ? 'dark bg-slate-900 text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
+    <div className={`min-h-screen w-full flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#0B1C2C] text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
       }`}>
       {/* Decorative radial background glowing nodes */}
       <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-blue-500/10 rounded-full mix-blend-screen filter blur-3xl opacity-30 pointer-events-none" />
