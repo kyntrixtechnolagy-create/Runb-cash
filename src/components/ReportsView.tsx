@@ -5,6 +5,9 @@
 
 import { useState } from 'react';
 import { motion } from 'motion/react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import {
   BarChart3,
   Calendar,
@@ -128,6 +131,81 @@ export default function ReportsView({
     document.body.removeChild(link);
   };
 
+  // Real Excel Exporter
+  const handleExportExcel = () => {
+    const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Staff Name', 'Amount ($)', 'Audit Status', 'Justification'];
+    const rows = reportTransactions.map((t) => [
+      t.id,
+      t.date,
+      t.type,
+      t.category,
+      t.supervisorName,
+      t.amount,
+      t.status,
+      t.description
+    ]);
+
+    const totalBalance = totalAllocated - totalSpent;
+    rows.push(['', '', '', '', 'TOTAL BALANCE:', totalBalance, '', '']);
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
+    XLSX.writeFile(workbook, `PettyCash_Report_${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // PDF Exporter
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(16);
+    doc.text(`PettyCash Report - ${reportType}`, 14, 22);
+    
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    const headers = [['ID', 'Date', 'Type', 'Category', 'Staff', 'Amount', 'Status']];
+    const data = reportTransactions.map((t) => [
+      t.id.slice(0, 8),
+      t.date,
+      t.type,
+      t.category,
+      t.supervisorName,
+      `$${t.amount}`,
+      t.status
+    ]);
+
+    const totalBalance = totalAllocated - totalSpent;
+    data.push(['', '', '', '', 'TOTAL BALANCE:', `$${totalBalance}`, '']);
+
+    autoTable(doc, {
+      startY: 35,
+      head: headers,
+      body: data,
+      theme: 'grid',
+      headStyles: { fillColor: [15, 118, 110] }, // teal-700
+      styles: { fontSize: 8 },
+      didParseCell: function(cellData: any) {
+        if (cellData.section === 'body') {
+          const rowData = cellData.row.raw;
+          // Red text for Expenses
+          if (rowData[2] === 'EXPENSE' && cellData.column.index === 5) {
+            cellData.cell.styles.textColor = [220, 38, 38];
+          }
+          // Bold style for Total Balance row
+          if (rowData[4] === 'TOTAL BALANCE:') {
+            cellData.cell.styles.fontStyle = 'bold';
+            if (cellData.column.index === 5) {
+              cellData.cell.styles.textColor = totalBalance >= 0 ? [16, 185, 129] : [220, 38, 38];
+            }
+          }
+        }
+      }
+    });
+
+    doc.save(`PettyCash_Report_${reportType}_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto no-scrollbar pb-24 p-4 space-y-5">
       {/* Report Segment Filter Tab Bar */}
@@ -228,15 +306,32 @@ export default function ReportsView({
           </div>
         )}
 
-        {/* Generate and export Excel button */}
-        <button
-          onClick={handleExportCSV}
-          disabled={reportTransactions.length === 0}
-          className="w-full h-11 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 font-bold text-xs text-white hover:opacity-95 focus:outline-none flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/15 active:scale-[0.98] transition-all duration-150 disabled:opacity-50"
-        >
-          <FileSpreadsheet className="w-4.5 h-4.5 stroke-[2.5]" />
-          <span>EXPORT TO EXCEL (CSV)</span>
-        </button>
+        {/* Export Actions */}
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={reportTransactions.length === 0}
+            className="w-full h-11 rounded-xl bg-slate-800 dark:bg-slate-700 font-bold text-xs text-white hover:opacity-95 focus:outline-none flex flex-col items-center justify-center gap-1 shadow-lg active:scale-[0.98] transition-all duration-150 disabled:opacity-50"
+          >
+            <span>CSV</span>
+          </button>
+          
+          <button
+            onClick={handleExportExcel}
+            disabled={reportTransactions.length === 0}
+            className="w-full h-11 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 font-bold text-xs text-white hover:opacity-95 focus:outline-none flex flex-col items-center justify-center gap-1 shadow-lg shadow-emerald-500/15 active:scale-[0.98] transition-all duration-150 disabled:opacity-50"
+          >
+            <span>EXCEL</span>
+          </button>
+
+          <button
+            onClick={handleExportPDF}
+            disabled={reportTransactions.length === 0}
+            className="w-full h-11 rounded-xl bg-gradient-to-r from-rose-600 to-red-500 font-bold text-xs text-white hover:opacity-95 focus:outline-none flex flex-col items-center justify-center gap-1 shadow-lg shadow-rose-500/15 active:scale-[0.98] transition-all duration-150 disabled:opacity-50"
+          >
+            <span>PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* Aggregate metrics */}

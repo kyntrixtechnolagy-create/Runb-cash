@@ -1,8 +1,14 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "app.vercel.runb_cash.twa",
-        "sha256_cert_fingerprints": ["80:4F:DB:4E:3F:50:40:65:47:39:C6:6F:78:6A:B2:05:14:E6:5D:04:8A:C4:3E:A4:E6:F7:5B:81:0E:09:47:66"]
-      }
-    }]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.runb_cash.twa",
+      "sha256_cert_fingerprints": [
+        "80:4F:DB:4E:3F:50:40:65:47:39:C6:6F:78:6A:B2:05:14:E6:5D:04:8A:C4:3E:A4:E6:F7:5B:81:0E:09:47:66"
+      ]
+    }
+  }
+]
