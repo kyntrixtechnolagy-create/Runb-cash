@@ -28,6 +28,7 @@ interface SupervisorDashboardViewProps {
   darkMode: boolean;
   onAddExpenseClick: () => void;
   onReturnCashClick: () => void;
+  onCollectCashClick: () => void;
   onViewTransactionDetails: (tx: Transaction) => void;
   onEditExpense?: (tx: Transaction) => void;
 }
@@ -40,6 +41,7 @@ export default function SupervisorDashboardView({
   darkMode,
   onAddExpenseClick,
   onReturnCashClick,
+  onCollectCashClick,
   onViewTransactionDetails,
   onEditExpense
 }: SupervisorDashboardViewProps) {
@@ -86,13 +88,22 @@ export default function SupervisorDashboardView({
               Rs. {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
           </div>
-          <button 
-             onClick={onReturnCashClick}
-             className="w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 transition-colors cursor-pointer"
-             title="Return Cash to Owner"
-          >
-            <Undo2 className="w-5 h-5 text-teal-100" />
-          </button>
+          <div className="flex gap-2">
+            <button 
+               onClick={onCollectCashClick}
+               className="w-10 h-10 bg-emerald-500/20 hover:bg-emerald-500/40 backdrop-blur-md rounded-xl flex items-center justify-center border border-emerald-500/30 transition-colors cursor-pointer"
+               title="Receive Cash at Site"
+            >
+              <ArrowDownLeft className="w-5 h-5 text-emerald-100" />
+            </button>
+            <button 
+               onClick={onReturnCashClick}
+               className="w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 transition-colors cursor-pointer"
+               title="Return Cash to Owner"
+            >
+              <Undo2 className="w-5 h-5 text-teal-100" />
+            </button>
+          </div>
         </div>
 
         {/* Dynamic Warning if cash is low */}

@@ -43,7 +43,7 @@ export default function ReportsView({
   onMarkMistake,
   onApproveDaily
 }: ReportsViewProps) {
-  const [reportType, setReportType] = useState<'DAILY' | 'DATE_RANGE' | 'SUPERVISOR'>('DAILY');
+  const [reportType, setReportType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR'>('DAILY');
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 15);
@@ -66,12 +66,22 @@ export default function ReportsView({
 
     // 2. Date Filter
     let matchDateRange = true;
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
     if (reportType === 'DATE_RANGE') {
       matchDateRange = t.date >= startDate && t.date <= endDate;
     } else if (reportType === 'DAILY') {
-      // Just today's date for daily
-      const todayStr = new Date().toISOString().split('T')[0];
       matchDateRange = t.date === todayStr;
+    } else if (reportType === 'WEEKLY') {
+      const lastWeek = new Date();
+      lastWeek.setDate(today.getDate() - 7);
+      const lastWeekStr = lastWeek.toISOString().split('T')[0];
+      matchDateRange = t.date >= lastWeekStr && t.date <= todayStr;
+    } else if (reportType === 'MONTHLY') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      const firstDayStr = firstDay.toISOString().split('T')[0];
+      matchDateRange = t.date >= firstDayStr && t.date <= todayStr;
     } else if (reportType === 'SUPERVISOR') {
       matchDateRange = t.date === supervisorDate;
     }
@@ -220,12 +230,12 @@ export default function ReportsView({
   return (
     <div className="flex-1 overflow-y-auto no-scrollbar pb-24 p-4 space-y-5">
       {/* Report Segment Filter Tab Bar */}
-      <div className={`p-1.5 rounded-2xl border transition-all-300 flex ${
+      <div className={`p-1.5 rounded-2xl border transition-all-300 flex overflow-x-auto no-scrollbar ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
       }`}>
         <button
           onClick={() => setReportType('DAILY')}
-          className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all duration-300 ${
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
             reportType === 'DAILY'
               ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
               : 'text-slate-400 hover:text-slate-500'
@@ -234,8 +244,28 @@ export default function ReportsView({
           Daily
         </button>
         <button
+          onClick={() => setReportType('WEEKLY')}
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
+            reportType === 'WEEKLY'
+              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+              : 'text-slate-400 hover:text-slate-500'
+          }`}
+        >
+          Weekly
+        </button>
+        <button
+          onClick={() => setReportType('MONTHLY')}
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
+            reportType === 'MONTHLY'
+              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+              : 'text-slate-400 hover:text-slate-500'
+          }`}
+        >
+          Monthly
+        </button>
+        <button
           onClick={() => setReportType('DATE_RANGE')}
-          className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all duration-300 ${
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
             reportType === 'DATE_RANGE'
               ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
               : 'text-slate-400 hover:text-slate-500'
@@ -246,7 +276,7 @@ export default function ReportsView({
         {isOwner && (
           <button
             onClick={() => setReportType('SUPERVISOR')}
-            className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all duration-300 ${
+            className={`flex-1 min-w-[80px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
               reportType === 'SUPERVISOR'
                 ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
                 : 'text-slate-400 hover:text-slate-500'
@@ -267,6 +297,20 @@ export default function ReportsView({
           <div className="flex items-center gap-2 bg-blue-500/10 text-blue-500 p-3 rounded-2xl border border-blue-500/10 text-xs">
             <Calendar className="w-4.5 h-4.5 text-blue-500" />
             <span>Analyzing today's ledger logs ({new Date().toISOString().split('T')[0]})</span>
+          </div>
+        )}
+        
+        {reportType === 'WEEKLY' && (
+          <div className="flex items-center gap-2 bg-purple-500/10 text-purple-500 p-3 rounded-2xl border border-purple-500/10 text-xs">
+            <Calendar className="w-4.5 h-4.5 text-purple-500" />
+            <span>Analyzing last 7 days of ledger logs</span>
+          </div>
+        )}
+
+        {reportType === 'MONTHLY' && (
+          <div className="flex items-center gap-2 bg-indigo-500/10 text-indigo-500 p-3 rounded-2xl border border-indigo-500/10 text-xs">
+            <Calendar className="w-4.5 h-4.5 text-indigo-500" />
+            <span>Analyzing current month's ledger logs</span>
           </div>
         )}
 

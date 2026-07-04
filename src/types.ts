@@ -13,6 +13,7 @@ export interface User {
   avatarUrl?: string;
   phone?: string;
   designation?: string;
+  spendLimit?: number;
 }
 
 export interface SupervisorBalance {
@@ -59,7 +60,8 @@ export type ActiveScreen =
   | 'EDIT_EXPENSE'
   | 'RETURN_CASH'
   | 'REPORTS'
-  | 'PROFILE';
+  | 'PROFILE'
+  | 'COLLECT_CASH';
 
 export interface CategoryBudget {
   name: string;

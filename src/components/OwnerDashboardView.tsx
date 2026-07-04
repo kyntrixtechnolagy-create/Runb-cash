@@ -33,10 +33,10 @@ interface OwnerDashboardViewProps {
   transactions: Transaction[];
   darkMode: boolean;
   onAllocateCash: (supervisorId: string, amount: number, notes: string) => void;
-  onAddSupervisor: (name: string, email: string, password: string, designation: string, phone: string) => void;
+  onAddSupervisor: (name: string, email: string, password: string, designation: string, phone: string, spendLimit: number) => void;
   onReviewTransaction: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   onViewTransactionDetails: (tx: Transaction) => void;
-  onEditStaff: (id: string, name: string, designation: string, phone: string) => void;
+  onEditStaff: (id: string, name: string, designation: string, phone: string, spendLimit: number) => void;
 }
 
 export default function OwnerDashboardView({
@@ -64,28 +64,35 @@ export default function OwnerDashboardView({
   const [newSupEmail, setNewSupEmail] = useState('');
   const [newSupPassword, setNewSupPassword] = useState('');
   const [newSupDesig, setNewSupDesig] = useState('');
-  const [newSupPhone, setNewSupPhone] = useState('');
+  const [addSupPhone, setAddSupPhone] = useState('');
+  const [addSupSpendLimit, setAddSupSpendLimit] = useState('');
 
-  // Edit Staff state
+  // Editing staff
   const [editingStaff, setEditingStaff] = useState<User | null>(null);
   const [editName, setEditName] = useState('');
   const [editDesig, setEditDesig] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editSpendLimit, setEditSpendLimit] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [staffDetailsDate, setStaffDetailsDate] = useState('');
 
-  const openEditModal = (s: User) => {
-    setEditingStaff(s);
-    setEditName(s.name);
-    setEditDesig(s.designation || '');
-    setEditPhone(s.phone || '');
+  const openEditStaff = (staff: User) => {
+    setEditingStaff(staff);
+    setEditName(staff.name);
+    setEditDesig(staff.designation || '');
+    setEditPhone(staff.phone || '');
+    setEditSpendLimit(staff.spendLimit?.toString() || '');
   };
 
   const handleEditSave = () => {
     if (!editingStaff) return;
     setIsSavingEdit(true);
-    onEditStaff(editingStaff.id, editName, editDesig, editPhone);
-    setTimeout(() => { setIsSavingEdit(false); setEditingStaff(null); }, 800);
+    // Simulate network delay
+    setTimeout(() => {
+      onEditStaff(editingStaff.id, editName, editDesig, editPhone, Number(editSpendLimit) || 0);
+      setIsSavingEdit(false);
+      setEditingStaff(null);
+    }, 600);
   };
 
   // Compute stats
@@ -118,13 +125,14 @@ export default function OwnerDashboardView({
   const handleAddSupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSupName || !newSupEmail || !newSupDesig || !newSupPassword) return;
-    onAddSupervisor(newSupName, newSupEmail, newSupPassword, newSupDesig, newSupPhone);
+    onAddSupervisor(newSupName, newSupEmail, newSupPassword, newSupDesig, addSupPhone, Number(addSupSpendLimit) || 0);
     setShowAddSupModal(false);
     setNewSupName('');
     setNewSupEmail('');
     setNewSupPassword('');
     setNewSupDesig('');
-    setNewSupPhone('');
+    setAddSupPhone('');
+    setAddSupSpendLimit('');
   };
 
   // Mock data for weekly chart
@@ -335,18 +343,18 @@ export default function OwnerDashboardView({
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold text-xs">
-                      {tx.category[0]}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${tx.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-500' : tx.type === 'RETURN' ? 'bg-purple-500/10 text-purple-500' : 'bg-amber-500/10 text-amber-500'}`}>
+                      {tx.type === 'INCOME' ? '+' : tx.type === 'RETURN' ? 'R' : tx.category[0]}
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.type === 'RETURN' ? 'Cash Return' : tx.category}</div>
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.type === 'RETURN' ? 'Cash Return' : tx.type === 'INCOME' ? 'Received Cash' : tx.category}</div>
                       <div className="text-sm font-bold mt-0.5 line-clamp-1">{tx.description}</div>
                       <div className="text-[11px] text-slate-500 mt-0.5">By {tx.supervisorName} • {tx.date}</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`text-sm font-bold font-mono ${tx.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'}`}>
-                      {tx.type === 'RETURN' ? '+' : '-'}${tx.amount.toLocaleString()}
+                    <div className={`text-sm font-bold font-mono ${tx.type === 'INCOME' ? 'text-emerald-500' : tx.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'}`}>
+                      {tx.type === 'INCOME' || tx.type === 'RETURN' ? '+' : '-'}${tx.amount.toLocaleString()}
                     </div>
                     {tx.receiptUrl && (
                       <button
@@ -365,11 +373,11 @@ export default function OwnerDashboardView({
                   <button
                     onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
                     className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${
-                      tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                      tx.type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700' : tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
                     }`}
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>{tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
+                    <span>{tx.type === 'INCOME' ? 'Approve Collection' : tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
                   </button>
                   <button
                     onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
@@ -504,12 +512,12 @@ export default function OwnerDashboardView({
                       />
                       <div className="min-w-0">
                         <div className="text-sm font-bold truncate">{s.name}</div>
-                        <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide truncate">{s.designation || 'Staff'}</div>
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide truncate">{s.designation || 'Staff'} {s.spendLimit ? `| Limit: Rs.${s.spendLimit}` : ''}</div>
                       </div>
                     </div>
                     {/* Edit Button */}
                     <button
-                      onClick={() => openEditModal(s)}
+                      onClick={() => openEditStaff(s)}
                       className="p-2 rounded-xl bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 transition-colors shrink-0 cursor-pointer"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -639,6 +647,18 @@ export default function OwnerDashboardView({
                   type="text"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                  }`}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Total Spending Limit</label>
+                <input
+                  type="number"
+                  value={editSpendLimit}
+                  onChange={(e) => setEditSpendLimit(e.target.value)}
+                  placeholder="e.g. 5000"
                   className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
                     darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
                   }`}
@@ -823,8 +843,23 @@ export default function OwnerDashboardView({
                   <input
                     type="text"
                     placeholder="+1 (555) 012-3456"
-                    value={newSupPhone}
-                    onChange={(e) => setNewSupPhone(e.target.value)}
+                    value={addSupPhone}
+                    onChange={(e) => setAddSupPhone(e.target.value)}
+                    className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
+                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-400">Total Spending Limit</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    placeholder="e.g. 5000"
+                    value={addSupSpendLimit}
+                    onChange={(e) => setAddSupSpendLimit(e.target.value)}
                     className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
                       darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
                     }`}

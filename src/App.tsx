@@ -40,6 +40,7 @@ import EditExpenseView from './components/EditExpenseView';
 import ReturnCashView from './components/ReturnCashView';
 import ReportsView from './components/ReportsView';
 import ProfileView from './components/ProfileView';
+import CollectCashView from './components/CollectCashView';
 import Toast, { ToastMessage } from './components/Toast';
 
 export default function App() {
@@ -278,7 +279,7 @@ export default function App() {
         }]);
         if (balError) { console.error('Balance insert error:', balError); throw balError; }
 
-        const newSup: UserType = { id: newId, name, email, role: 'SUPERVISOR', avatarUrl: '', phone, designation };
+        const newSup: UserType = { id: newId, name, email, role: 'SUPERVISOR', avatarUrl: '', phone, designation, spendLimit: spendLimit || undefined };
         const newBalance: SupervisorBalance = { supervisorId: newId, supervisorName: name, allocatedCash: 0, spentCash: 0, remainingCash: 0 };
         updateDB([...supervisors, newSup], [...balances, newBalance], transactions);
         showToast(`Staff ${name} added successfully!`, 'SUCCESS');
@@ -289,15 +290,16 @@ export default function App() {
   };
 
   // Owner action: Edit existing staff details
-  const handleEditStaff = async (id: string, name: string, designation: string, phone: string) => {
+  const handleEditStaff = async (userId: string, name: string, desig: string, phone: string, spendLimit: number) => {
     try {
-      const { error } = await supabase.from('users').update({ name, designation, phone }).eq('id', id);
+      const updates = { name, designation: desig, phone, spendLimit: spendLimit || undefined };
+      const { error } = await supabase.from('users').update(updates).eq('id', userId);
       if (error) { console.error('Edit staff error:', error); throw error; }
 
       const updatedSups = supervisors.map((s) =>
-        s.id === id ? { ...s, name, designation, phone } : s
+        s.id === userId ? { ...s, ...updates } : s
       );
-      setSupervisors(updatedSups);
+      setSupervisors(updatedSups as UserType[]);
       showToast(`${name}'s details updated!`, 'SUCCESS');
     } catch (err: any) {
       showToast(err.message || 'Error updating staff', 'ERROR');
@@ -335,6 +337,21 @@ export default function App() {
         if (targetBalance) {
           const newAllocated = targetBalance.allocatedCash - targetTx.amount;
           const newRemaining = targetBalance.remainingCash - targetTx.amount;
+
+          const { error: balError } = await supabase.from('supervisor_balances')
+            .update({ "allocatedCash": newAllocated, "remainingCash": newRemaining })
+            .eq('supervisorId', targetTx.supervisorId);
+          if (balError) { console.error('Balance update error:', balError); throw balError; }
+
+          updatedBalances = balances.map((b) =>
+            b.supervisorId === targetTx.supervisorId ? { ...b, allocatedCash: newAllocated, remainingCash: newRemaining } : b
+          );
+        }
+      } else if (status === 'APPROVED' && targetTx.status === 'PENDING' && targetTx.type === 'INCOME') {
+        const targetBalance = balances.find((b) => b.supervisorId === targetTx.supervisorId);
+        if (targetBalance) {
+          const newAllocated = targetBalance.allocatedCash + targetTx.amount;
+          const newRemaining = targetBalance.remainingCash + targetTx.amount;
 
           const { error: balError } = await supabase.from('supervisor_balances')
             .update({ "allocatedCash": newAllocated, "remainingCash": newRemaining })
@@ -529,6 +546,36 @@ export default function App() {
     }
   };
 
+  // Supervisor action: Submit a cash collection (income)
+  const handleCollectCash = async (amount: number, siteName: string, note: string) => {
+    if (!currentUser) return;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      const { data: txData, error } = await supabase.from('transactions').insert([
+        {
+          amount: amount,
+          type: 'INCOME',
+          category: siteName,
+          description: note,
+          date: today,
+          "supervisorId": currentUser.id,
+          "supervisorName": currentUser.name,
+          status: 'PENDING'
+        }
+      ]).select().single();
+
+      if (error) { console.error('Income insert error:', error); throw error; }
+
+      const newTx = txData as Transaction;
+      updateDB(supervisors, balances, [newTx, ...transactions]);
+      showToast('Cash collection submitted for owner approval!', 'SUCCESS');
+      setActiveScreen('SUPERVISOR_DASHBOARD');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to submit cash collection', 'ERROR');
+    }
+  };
+
   // Pull-to-refresh simulator
   const handleRefreshLedger = () => {
     setIsRefreshing(true);
@@ -579,7 +626,12 @@ export default function App() {
   const pendingReturns = transactions
     .filter(t => t.supervisorId === currentUser?.id && t.type === 'RETURN' && t.status === 'PENDING')
     .reduce((sum, t) => sum + t.amount, 0);
-  const spendableCash = Math.max(0, activeSupBalance.remainingCash - pendingReturns);
+  
+  let spendableCash = Math.max(0, activeSupBalance.remainingCash - pendingReturns);
+  if (currentUser?.spendLimit && currentUser.spendLimit > 0) {
+    const limitRemaining = Math.max(0, currentUser.spendLimit - activeSupBalance.spentCash);
+    spendableCash = Math.min(spendableCash, limitRemaining);
+  }
 
   return (
     <div className={`fixed inset-0 w-full h-[100dvh] lg:h-auto lg:relative lg:min-h-screen flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#0B1C2C] text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
@@ -722,6 +774,7 @@ export default function App() {
                           darkMode={darkMode}
                           onAddExpenseClick={() => setActiveScreen('ADD_EXPENSE')}
                           onReturnCashClick={() => setActiveScreen('RETURN_CASH')}
+                          onCollectCashClick={() => setActiveScreen('COLLECT_CASH')}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
                           onEditExpense={(tx) => {
                             setSelectedTxDetails(tx);
@@ -760,6 +813,14 @@ export default function App() {
                           onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
                           darkMode={darkMode}
                           availableBalance={spendableCash}
+                        />
+                      )}
+
+                      {activeScreen === 'COLLECT_CASH' && (
+                        <CollectCashView
+                          onCollectCash={handleCollectCash}
+                          onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
+                          darkMode={darkMode}
                         />
                       )}
 
