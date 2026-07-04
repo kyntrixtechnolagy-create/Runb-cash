@@ -72,6 +72,7 @@ export default function OwnerDashboardView({
   const [editDesig, setEditDesig] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [staffDetailsDate, setStaffDetailsDate] = useState('');
 
   const openEditModal = (s: User) => {
     setEditingStaff(s);
@@ -338,13 +339,15 @@ export default function OwnerDashboardView({
                       {tx.category[0]}
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.category}</div>
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.type === 'RETURN' ? 'Cash Return' : tx.category}</div>
                       <div className="text-sm font-bold mt-0.5 line-clamp-1">{tx.description}</div>
                       <div className="text-[11px] text-slate-500 mt-0.5">By {tx.supervisorName} • {tx.date}</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-bold font-mono text-red-500">-${tx.amount.toLocaleString()}</div>
+                    <div className={`text-sm font-bold font-mono ${tx.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'}`}>
+                      {tx.type === 'RETURN' ? '+' : '-'}${tx.amount.toLocaleString()}
+                    </div>
                     {tx.receiptUrl && (
                       <button
                         onClick={() => onViewTransactionDetails(tx)}
@@ -361,10 +364,12 @@ export default function OwnerDashboardView({
                 <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5">
                   <button
                     onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
-                    className="flex-1 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer"
+                    className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${
+                      tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>Approve Purchase</span>
+                    <span>{tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
                   </button>
                   <button
                     onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
@@ -445,9 +450,27 @@ export default function OwnerDashboardView({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">All Staff Details</h4>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'
-          }`}>{supervisors.length} members</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={staffDetailsDate}
+              onChange={(e) => setStaffDetailsDate(e.target.value)}
+              className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${
+                darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'
+              }`}
+            />
+            {staffDetailsDate && (
+              <button 
+                onClick={() => setStaffDetailsDate('')}
+                className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-1"
+              >
+                Clear
+              </button>
+            )}
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+              darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'
+            }`}>{supervisors.length} members</span>
+          </div>
         </div>
 
         {supervisors.length === 0 ? (
@@ -509,23 +532,44 @@ export default function OwnerDashboardView({
 
                   {/* Balance Chips */}
                   {bal && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex gap-2">
-                      <div className={`flex-1 rounded-xl p-2 text-center ${
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 grid grid-cols-4 gap-2">
+                      <div className={`rounded-xl p-2 text-center ${
                         darkMode ? 'bg-slate-800' : 'bg-slate-50'
                       }`}>
                         <div className="text-[9px] font-bold text-slate-400 uppercase">Given</div>
-                        <div className="text-xs font-bold font-mono text-blue-500 mt-0.5">Rs. {bal.allocatedCash.toLocaleString()}</div>
+                        <div className="text-xs font-bold font-mono text-blue-500 mt-0.5">
+                          Rs. {(staffDetailsDate 
+                            ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                            : bal.allocatedCash + transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                          ).toLocaleString()}
+                        </div>
                       </div>
-                      <div className={`flex-1 rounded-xl p-2 text-center ${
+                      <div className={`rounded-xl p-2 text-center ${
                         darkMode ? 'bg-slate-800' : 'bg-slate-50'
                       }`}>
                         <div className="text-[9px] font-bold text-slate-400 uppercase">Spent</div>
-                        <div className="text-xs font-bold font-mono text-red-500 mt-0.5">Rs. {bal.spentCash.toLocaleString()}</div>
+                        <div className="text-xs font-bold font-mono text-red-500 mt-0.5">
+                          Rs. {(staffDetailsDate
+                            ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                            : bal.spentCash
+                          ).toLocaleString()}
+                        </div>
                       </div>
-                      <div className={`flex-1 rounded-xl p-2 text-center ${
+                      <div className={`rounded-xl p-2 text-center ${
                         darkMode ? 'bg-slate-800' : 'bg-slate-50'
                       }`}>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">Left</div>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">Returned</div>
+                        <div className="text-xs font-bold font-mono text-purple-500 mt-0.5">
+                          Rs. {(staffDetailsDate
+                            ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                            : transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                          ).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className={`rounded-xl p-2 text-center flex flex-col justify-center items-center ${
+                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                      }`}>
+                        <div className="text-[9px] font-bold text-slate-400 uppercase">{staffDetailsDate ? 'Cur. Left' : 'Left'}</div>
                         <div className="text-xs font-bold font-mono text-teal-500 mt-0.5">Rs. {bal.remainingCash.toLocaleString()}</div>
                       </div>
                     </div>

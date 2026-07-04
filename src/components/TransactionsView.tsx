@@ -30,6 +30,7 @@ interface TransactionsViewProps {
   onReviewTransaction?: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   selectedTxDetails?: Transaction | null;
   setSelectedTxDetails: (tx: Transaction | null) => void;
+  onEditExpense?: (tx: Transaction) => void;
 }
 
 export default function TransactionsView({
@@ -38,7 +39,8 @@ export default function TransactionsView({
   darkMode,
   onReviewTransaction,
   selectedTxDetails,
-  setSelectedTxDetails
+  setSelectedTxDetails,
+  onEditExpense
 }: TransactionsViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -127,6 +129,7 @@ export default function TransactionsView({
               <option value="ALL">All Flows</option>
               <option value="INCOME">Income / Allocation</option>
               <option value="EXPENSE">Expense / Cost</option>
+              <option value="RETURN">Cash Return</option>
             </select>
           </div>
         </div>
@@ -201,6 +204,7 @@ export default function TransactionsView({
           <div className="space-y-2.5">
             {filteredTx.map((tx) => {
               const isIncome = tx.type === 'INCOME';
+              const isReturn = tx.type === 'RETURN';
 
               return (
                 <div
@@ -216,18 +220,22 @@ export default function TransactionsView({
                     <div className={`w-9.5 h-9.5 rounded-xl flex items-center justify-center font-bold text-xs ${
                       isIncome
                         ? 'bg-emerald-500/10 text-emerald-500'
+                        : isReturn
+                        ? 'bg-purple-500/10 text-purple-500'
                         : tx.status === 'APPROVED'
                         ? 'bg-blue-500/10 text-blue-500'
                         : tx.status === 'REJECTED'
                         ? 'bg-red-500/10 text-red-500'
+                        : tx.status === 'NEEDS_CORRECTION'
+                        ? 'bg-rose-500/10 text-rose-500'
                         : 'bg-amber-500/10 text-amber-500'
                     }`}>
-                      {isIncome ? '+' : tx.category[0]}
+                      {isIncome ? '+' : isReturn ? 'R' : tx.category[0]}
                     </div>
 
                     <div>
                       <div className="text-[9px] font-bold font-mono text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <span>{tx.category}</span>
+                        <span>{isReturn ? 'Cash Return' : tx.category}</span>
                         {isOwner && (
                           <span className="text-slate-400 font-normal">by {tx.supervisorName}</span>
                         )}
@@ -239,9 +247,9 @@ export default function TransactionsView({
 
                   <div className="text-right flex flex-col items-end gap-1">
                     <span className={`text-xs font-mono font-bold ${
-                      isIncome ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-200'
+                      isIncome ? 'text-emerald-500' : isReturn ? 'text-purple-500' : 'text-slate-800 dark:text-slate-200'
                     }`}>
-                      {isIncome ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
+                      {isIncome ? '+' : isReturn ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                     </span>
 
                     {/* Status indicator */}
@@ -260,6 +268,24 @@ export default function TransactionsView({
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[8px] font-bold">
                           <XCircle className="w-2 h-2" /> Rejected
                         </span>
+                      )}
+                      {tx.status === 'NEEDS_CORRECTION' && (
+                        <div className="flex flex-col items-end gap-1 mt-1">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[8px] font-bold">
+                            <AlertCircle className="w-2 h-2" /> Needs Correction
+                          </span>
+                          {!isOwner && onEditExpense && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditExpense(tx);
+                              }}
+                              className="text-[8px] font-bold px-2 py-1 bg-rose-500 text-white rounded active:scale-95"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -301,9 +327,9 @@ export default function TransactionsView({
                     Amount Value
                   </div>
                   <div className={`text-2xl font-bold font-mono mt-0.5 ${
-                    selectedTxDetails.type === 'INCOME' ? 'text-emerald-500' : 'text-slate-900 dark:text-slate-100'
+                    selectedTxDetails.type === 'INCOME' ? 'text-emerald-500' : selectedTxDetails.type === 'RETURN' ? 'text-purple-500' : 'text-slate-900 dark:text-slate-100'
                   }`}>
-                    {selectedTxDetails.type === 'INCOME' ? '+' : '-'}Rs. {selectedTxDetails.amount.toLocaleString()}
+                    {selectedTxDetails.type === 'INCOME' ? '+' : selectedTxDetails.type === 'RETURN' ? '+' : '-'}Rs. {selectedTxDetails.amount.toLocaleString()}
                   </div>
                 </div>
 
@@ -327,6 +353,11 @@ export default function TransactionsView({
                         <XCircle className="w-3.5 h-3.5" /> Rejected
                       </span>
                     )}
+                    {selectedTxDetails.status === 'NEEDS_CORRECTION' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-500/10 text-rose-500 text-xs font-bold">
+                        <AlertCircle className="w-3.5 h-3.5" /> Mistake
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -335,7 +366,7 @@ export default function TransactionsView({
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
                   <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">Flow Type</span>
-                  <span className="font-bold mt-1 block">{selectedTxDetails.type === 'INCOME' ? 'Allocation Inflow' : 'Field Expense'}</span>
+                  <span className="font-bold mt-1 block">{selectedTxDetails.type === 'INCOME' ? 'Allocation Inflow' : selectedTxDetails.type === 'RETURN' ? 'Cash Return' : 'Field Expense'}</span>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
                   <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">Category Tag</span>
@@ -355,11 +386,20 @@ export default function TransactionsView({
 
               {/* Description */}
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
-                <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">Expense Justification</span>
+                <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">{selectedTxDetails.type === 'RETURN' ? 'Return Note' : 'Expense Justification'}</span>
                 <p className="font-medium text-xs mt-1 text-slate-700 dark:text-slate-200">
                   {selectedTxDetails.description}
                 </p>
               </div>
+
+              {selectedTxDetails.status === 'NEEDS_CORRECTION' && selectedTxDetails.mistakeNote && (
+                <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20">
+                  <span className="text-rose-500 font-mono tracking-wider text-[9px] uppercase block">Owner's Note on Mistake</span>
+                  <p className="font-bold text-xs mt-1 text-rose-600 dark:text-rose-400">
+                    {selectedTxDetails.mistakeNote}
+                  </p>
+                </div>
+              )}
 
               {/* Receipt Image Upload Preview */}
               {selectedTxDetails.type === 'EXPENSE' && (
@@ -400,10 +440,12 @@ export default function TransactionsView({
                       onReviewTransaction(selectedTxDetails.id, 'APPROVED');
                       setSelectedTxDetails(null);
                     }}
-                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                    className={`flex-1 py-2.5 rounded-xl text-white font-medium text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform ${
+                      selectedTxDetails.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
                   >
                     <CheckCircle className="w-4 h-4" />
-                    <span>Approve Claims</span>
+                    <span>{selectedTxDetails.type === 'RETURN' ? 'Accept Return' : 'Approve Claims'}</span>
                   </button>
                   <button
                     onClick={() => {

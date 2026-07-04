@@ -15,32 +15,39 @@ import {
   Plus,
   Compass,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  Undo2
 } from 'lucide-react';
 import { User, SupervisorBalance, Transaction } from '../types';
 
 interface SupervisorDashboardViewProps {
   user: User;
   balance: SupervisorBalance;
+  spendableCash: number;
   transactions: Transaction[];
   darkMode: boolean;
   onAddExpenseClick: () => void;
+  onReturnCashClick: () => void;
   onViewTransactionDetails: (tx: Transaction) => void;
+  onEditExpense?: (tx: Transaction) => void;
 }
 
 export default function SupervisorDashboardView({
   user,
   balance,
+  spendableCash,
   transactions,
   darkMode,
   onAddExpenseClick,
-  onViewTransactionDetails
+  onReturnCashClick,
+  onViewTransactionDetails,
+  onEditExpense
 }: SupervisorDashboardViewProps) {
   // Filter transactions for this supervisor
   const myTransactions = transactions.filter((t) => t.supervisorId === user.id);
 
   // Compute stats
-  const availableCash = balance ? balance.remainingCash : 0;
+  const availableCash = spendableCash;
   const totalFundingAllocated = balance ? balance.allocatedCash : 0;
 
   // Expenses spent by this supervisor today (or overall approved spent)
@@ -79,9 +86,13 @@ export default function SupervisorDashboardView({
               Rs. {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
           </div>
-          <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
-            <Compass className="w-5 h-5 text-teal-100" />
-          </div>
+          <button 
+             onClick={onReturnCashClick}
+             className="w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 transition-colors cursor-pointer"
+             title="Return Cash to Owner"
+          >
+            <Undo2 className="w-5 h-5 text-teal-100" />
+          </button>
         </div>
 
         {/* Dynamic Warning if cash is low */}
@@ -188,13 +199,17 @@ export default function SupervisorDashboardView({
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${
                     tx.type === 'INCOME'
                       ? 'bg-emerald-500/10 text-emerald-500'
+                      : tx.type === 'RETURN'
+                      ? 'bg-purple-500/10 text-purple-500'
                       : tx.status === 'APPROVED'
                       ? 'bg-teal-500/10 text-teal-500'
                       : tx.status === 'REJECTED'
                       ? 'bg-red-500/10 text-red-500'
+                      : tx.status === 'NEEDS_CORRECTION'
+                      ? 'bg-rose-500/10 text-rose-500'
                       : 'bg-amber-500/10 text-amber-500'
                   }`}>
-                    {tx.type === 'INCOME' ? '+' : tx.category[0]}
+                    {tx.type === 'INCOME' ? '+' : tx.type === 'RETURN' ? 'R' : tx.category[0]}
                   </div>
 
                   <div>
@@ -206,7 +221,7 @@ export default function SupervisorDashboardView({
 
                 <div className="text-right flex flex-col items-end gap-1">
                   <span className={`text-xs font-bold font-mono ${
-                    tx.type === 'INCOME' ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-200'
+                    tx.type === 'INCOME' ? 'text-emerald-500' : tx.type === 'RETURN' ? 'text-purple-500' : 'text-slate-800 dark:text-slate-200'
                   }`}>
                     {tx.type === 'INCOME' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                   </span>
@@ -227,6 +242,24 @@ export default function SupervisorDashboardView({
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[9px] font-bold">
                         <XCircle className="w-2 h-2" /> Rejected
                       </span>
+                    )}
+                    {tx.status === 'NEEDS_CORRECTION' && (
+                      <div className="flex flex-col items-end gap-1 mt-1">
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[9px] font-bold">
+                          <AlertCircle className="w-2 h-2" /> Needs Correction
+                        </span>
+                        {onEditExpense && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditExpense(tx);
+                            }}
+                            className="text-[9px] font-bold px-2 py-1 bg-rose-500 text-white rounded-md active:scale-95"
+                          >
+                            Edit Expense
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

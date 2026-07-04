@@ -23,8 +23,8 @@ export interface SupervisorBalance {
   remainingCash: number;
 }
 
-export type TransactionStatus = 'APPROVED' | 'PENDING' | 'REJECTED';
-export type TransactionType = 'INCOME' | 'EXPENSE';
+export type TransactionStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'NEEDS_CORRECTION';
+export type TransactionType = 'INCOME' | 'EXPENSE' | 'RETURN';
 
 export interface Transaction {
   id: string;
@@ -37,6 +37,7 @@ export interface Transaction {
   supervisorName: string;
   receiptUrl?: string;
   status: TransactionStatus;
+  mistakeNote?: string;
 }
 
 export interface PettyCashStats {
@@ -55,6 +56,8 @@ export type ActiveScreen =
   | 'SUPERVISOR_DASHBOARD'
   | 'TRANSACTIONS'
   | 'ADD_EXPENSE'
+  | 'EDIT_EXPENSE'
+  | 'RETURN_CASH'
   | 'REPORTS'
   | 'PROFILE';
 

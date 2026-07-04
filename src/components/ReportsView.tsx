@@ -30,6 +30,8 @@ interface ReportsViewProps {
   userRole: UserRole;
   activeUser: SupervisorType;
   darkMode: boolean;
+  onMarkMistake?: (txId: string, note: string) => void;
+  onApproveDaily?: (supervisorId: string, date: string) => void;
 }
 
 export default function ReportsView({
@@ -37,7 +39,9 @@ export default function ReportsView({
   supervisors,
   userRole,
   activeUser,
-  darkMode
+  darkMode,
+  onMarkMistake,
+  onApproveDaily
 }: ReportsViewProps) {
   const [reportType, setReportType] = useState<'DAILY' | 'DATE_RANGE' | 'SUPERVISOR'>('DAILY');
   const [startDate, setStartDate] = useState(() => {
@@ -46,7 +50,12 @@ export default function ReportsView({
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [supervisorDate, setSupervisorDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSupFilter, setSelectedSupFilter] = useState('ALL');
+  
+  const [showMistakeForm, setShowMistakeForm] = useState(false);
+  const [mistakeTxId, setMistakeTxId] = useState('');
+  const [mistakeNote, setMistakeNote] = useState('');
 
   const isOwner = userRole === 'OWNER';
 
@@ -63,6 +72,8 @@ export default function ReportsView({
       // Just today's date for daily
       const todayStr = new Date().toISOString().split('T')[0];
       matchDateRange = t.date === todayStr;
+    } else if (reportType === 'SUPERVISOR') {
+      matchDateRange = t.date === supervisorDate;
     }
 
     // 3. Supervisor Selector
@@ -287,22 +298,36 @@ export default function ReportsView({
         )}
 
         {isOwner && reportType === 'SUPERVISOR' && (
-          <div className="space-y-1.5">
-            <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">Select Supervisor Ledger</span>
-            <select
-              value={selectedSupFilter}
-              onChange={(e) => setSelectedSupFilter(e.target.value)}
-              className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
-                darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-              }`}
-            >
-              <option value="ALL">All Supervisors comparative view</option>
-              {supervisors.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.designation})
-                </option>
-              ))}
-            </select>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">Select Supervisor Ledger</span>
+              <select
+                value={selectedSupFilter}
+                onChange={(e) => setSelectedSupFilter(e.target.value)}
+                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
+                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <option value="ALL">All Supervisors comparative view</option>
+                {supervisors.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.designation})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">Audit Date</span>
+              <input
+                type="date"
+                value={supervisorDate}
+                onChange={(e) => setSupervisorDate(e.target.value)}
+                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
+                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                }`}
+              />
+            </div>
           </div>
         )}
 
@@ -462,6 +487,91 @@ export default function ReportsView({
           </div>
         )}
       </div>
+
+      {/* Approve All / Mistake Workflow (Owner only, on specific staff) */}
+      {isOwner && reportType === 'SUPERVISOR' && selectedSupFilter !== 'ALL' && (
+        <div className="pt-4 space-y-3">
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowMistakeForm(!showMistakeForm)}
+              className={`flex-1 h-12 rounded-xl font-bold text-xs ${
+                showMistakeForm 
+                  ? 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200' 
+                  : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
+              } transition-all duration-300`}
+            >
+              {showMistakeForm ? 'Cancel Mistake' : 'Mistake'}
+            </button>
+            <button
+              onClick={() => {
+                if (onApproveDaily) onApproveDaily(selectedSupFilter, supervisorDate);
+              }}
+              className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all"
+            >
+              Approve All
+            </button>
+          </div>
+
+          {/* Mistake Form Dropdown */}
+          {showMistakeForm && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`p-4 rounded-2xl border space-y-3 ${
+                darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+              }`}
+            >
+              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Flag an Expense</h4>
+              
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold text-slate-400 uppercase">Select Expense</label>
+                <select
+                  value={mistakeTxId}
+                  onChange={(e) => setMistakeTxId(e.target.value)}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                >
+                  <option value="" disabled>Choose transaction...</option>
+                  {reportTransactions.filter(t => t.type === 'EXPENSE').map(t => (
+                    <option key={t.id} value={t.id}>
+                      ${t.amount} - {t.category} ({t.date})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-semibold text-slate-400 uppercase">Note (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="What needs to be corrected?"
+                  value={mistakeNote}
+                  onChange={(e) => setMistakeNote(e.target.value)}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                />
+              </div>
+
+              <button
+                disabled={!mistakeTxId}
+                onClick={() => {
+                  if (onMarkMistake && mistakeTxId) {
+                    onMarkMistake(mistakeTxId, mistakeNote);
+                    setShowMistakeForm(false);
+                    setMistakeTxId('');
+                    setMistakeNote('');
+                  }
+                }}
+                className="w-full h-11 rounded-xl bg-rose-500 text-white font-bold text-xs disabled:opacity-50 active:scale-[0.98] transition-all"
+              >
+                Confirm Mistake
+              </button>
+            </motion.div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

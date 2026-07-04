@@ -36,6 +36,8 @@ import OwnerDashboardView from './components/OwnerDashboardView';
 import SupervisorDashboardView from './components/SupervisorDashboardView';
 import TransactionsView from './components/TransactionsView';
 import AddExpenseView from './components/AddExpenseView';
+import EditExpenseView from './components/EditExpenseView';
+import ReturnCashView from './components/ReturnCashView';
 import ReportsView from './components/ReportsView';
 import ProfileView from './components/ProfileView';
 import Toast, { ToastMessage } from './components/Toast';
@@ -312,7 +314,7 @@ export default function App() {
       if (txError) { console.error('Review TX error:', txError); throw txError; }
 
       let updatedBalances = [...balances];
-      if (status === 'APPROVED' && targetTx.status === 'PENDING') {
+      if (status === 'APPROVED' && targetTx.status === 'PENDING' && targetTx.type === 'EXPENSE') {
         const targetBalance = balances.find((b) => b.supervisorId === targetTx.supervisorId);
         if (targetBalance) {
           const newSpent = targetBalance.spentCash + targetTx.amount;
@@ -327,12 +329,136 @@ export default function App() {
             b.supervisorId === targetTx.supervisorId ? { ...b, spentCash: newSpent, remainingCash: newRemaining } : b
           );
         }
+      } else if (status === 'APPROVED' && targetTx.status === 'PENDING' && targetTx.type === 'RETURN') {
+        // If a RETURN is approved, reduce the allocatedCash and remainingCash
+        const targetBalance = balances.find((b) => b.supervisorId === targetTx.supervisorId);
+        if (targetBalance) {
+          const newAllocated = targetBalance.allocatedCash - targetTx.amount;
+          const newRemaining = targetBalance.remainingCash - targetTx.amount;
+
+          const { error: balError } = await supabase.from('supervisor_balances')
+            .update({ "allocatedCash": newAllocated, "remainingCash": newRemaining })
+            .eq('supervisorId', targetTx.supervisorId);
+          if (balError) { console.error('Balance update error:', balError); throw balError; }
+
+          updatedBalances = balances.map((b) =>
+            b.supervisorId === targetTx.supervisorId ? { ...b, allocatedCash: newAllocated, remainingCash: newRemaining } : b
+          );
+        }
       }
 
       updateDB(supervisors, updatedBalances, transactions.map((t) => t.id === txId ? { ...t, status } : t));
       showToast(`Claim sheet is ${status.toLowerCase()}`, 'SUCCESS');
     } catch (err: any) {
       showToast(err.message || 'Error updating transaction', 'ERROR');
+    }
+  };
+
+  // Owner action: Mark a transaction as mistake
+  const handleMarkMistake = async (txId: string, note: string) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx) return;
+
+    try {
+      const { error: txError } = await supabase.from('transactions').update({ status: 'NEEDS_CORRECTION', "mistakeNote": note }).eq('id', txId);
+      if (txError) { console.error('Mark Mistake error:', txError); throw txError; }
+
+      let updatedBalances = [...balances];
+
+      // If the transaction was previously APPROVED, reverse the balance so it's not double counted later
+      if (targetTx.status === 'APPROVED') {
+        const targetBalance = balances.find((b) => b.supervisorId === targetTx.supervisorId);
+        if (targetBalance) {
+          const newSpent = targetBalance.spentCash - targetTx.amount;
+          const newRemaining = targetBalance.remainingCash + targetTx.amount;
+
+          const { error: balError } = await supabase.from('supervisor_balances')
+            .update({ "spentCash": newSpent, "remainingCash": newRemaining })
+            .eq('supervisorId', targetTx.supervisorId);
+
+          if (balError) { console.error('Balance update error:', balError); throw balError; }
+
+          updatedBalances = balances.map((b) =>
+            b.supervisorId === targetTx.supervisorId ? { ...b, spentCash: newSpent, remainingCash: newRemaining } : b
+          );
+        }
+      }
+
+      updateDB(supervisors, updatedBalances, transactions.map((t) => t.id === txId ? { ...t, status: 'NEEDS_CORRECTION', mistakeNote: note } : t));
+      showToast(`Flagged as mistake for staff correction`, 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error flagging transaction', 'ERROR');
+    }
+  };
+
+  // Owner action: Bulk approve daily pending transactions
+  const handleApproveDaily = async (supervisorId: string, date: string) => {
+    try {
+      // Find all pending transactions for this supervisor on this date
+      const txsToApprove = transactions.filter(t => t.supervisorId === supervisorId && t.date === date && t.status === 'PENDING');
+
+      if (txsToApprove.length === 0) {
+        showToast('No pending transactions to approve', 'SUCCESS');
+        return;
+      }
+
+      const txIds = txsToApprove.map(t => t.id);
+      const { error: txError } = await supabase.from('transactions').update({ status: 'APPROVED' }).in('id', txIds);
+      if (txError) { console.error('Approve Daily error:', txError); throw txError; }
+
+      // Update balances
+      let updatedBalances = [...balances];
+      const targetBalance = balances.find((b) => b.supervisorId === supervisorId);
+
+      if (targetBalance) {
+        const expenseTotal = txsToApprove.filter(t => t.type === 'EXPENSE').reduce((sum, tx) => sum + tx.amount, 0);
+        const returnTotal = txsToApprove.filter(t => t.type === 'RETURN').reduce((sum, tx) => sum + tx.amount, 0);
+
+        const newSpent = targetBalance.spentCash + expenseTotal;
+        const newAllocated = targetBalance.allocatedCash - returnTotal;
+        const newRemaining = targetBalance.remainingCash - (expenseTotal + returnTotal);
+
+        const { error: balError } = await supabase.from('supervisor_balances')
+          .update({ "spentCash": newSpent, "allocatedCash": newAllocated, "remainingCash": newRemaining })
+          .eq('supervisorId', supervisorId);
+
+        if (balError) { console.error('Balance update error:', balError); throw balError; }
+
+        updatedBalances = balances.map((b) =>
+          b.supervisorId === supervisorId ? { ...b, spentCash: newSpent, allocatedCash: newAllocated, remainingCash: newRemaining } : b
+        );
+      }
+
+      updateDB(supervisors, updatedBalances, transactions.map((t) => txIds.includes(t.id) ? { ...t, status: 'APPROVED' } : t));
+      showToast(`Approved ${txsToApprove.length} transaction(s)`, 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error approving transactions', 'ERROR');
+    }
+  };
+
+  // Supervisor action: Update an expense that had a mistake
+  const handleUpdateExpense = async (txId: string, updates: Partial<Transaction>) => {
+    if (!currentUser) return;
+    try {
+      const updatePayload = {
+        amount: updates.amount,
+        category: updates.category,
+        description: updates.description,
+        date: updates.date,
+        "receiptUrl": updates.receiptUrl || null,
+        status: 'PENDING',
+        "mistakeNote": null
+      };
+
+      const { error } = await supabase.from('transactions').update(updatePayload).eq('id', txId);
+      if (error) { console.error('Update expense error:', error); throw error; }
+
+      updateDB(supervisors, balances, transactions.map((t) => t.id === txId ? { ...t, ...updatePayload, status: 'PENDING', mistakeNote: undefined } : t));
+      showToast('Expense corrected and submitted for review!', 'SUCCESS');
+      setActiveScreen('SUPERVISOR_DASHBOARD');
+      setSelectedTxDetails(null);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to update expense', 'ERROR');
     }
   };
 
@@ -370,6 +496,36 @@ export default function App() {
       setActiveScreen('SUPERVISOR_DASHBOARD');
     } catch (err: any) {
       showToast(err.message || 'Failed to submit expense', 'ERROR');
+    }
+  };
+
+  // Supervisor action: Submit a return cash request
+  const handleReturnCash = async (amount: number, note: string) => {
+    if (!currentUser) return;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      const { data: txData, error } = await supabase.from('transactions').insert([
+        {
+          amount: amount,
+          type: 'RETURN',
+          category: 'Returned to Owner',
+          description: note,
+          date: today,
+          "supervisorId": currentUser.id,
+          "supervisorName": currentUser.name,
+          status: 'PENDING'
+        }
+      ]).select().single();
+
+      if (error) { console.error('Return insert error:', error); throw error; }
+
+      const newTx = txData as Transaction;
+      updateDB(supervisors, balances, [newTx, ...transactions]);
+      showToast('Cash return submitted for owner approval!', 'SUCCESS');
+      setActiveScreen('SUPERVISOR_DASHBOARD');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to return cash', 'ERROR');
     }
   };
 
@@ -418,6 +574,12 @@ export default function App() {
     spentCash: 0,
     remainingCash: 0
   };
+
+  // Calculate pending returns to subtract from spendable cash
+  const pendingReturns = transactions
+    .filter(t => t.supervisorId === currentUser?.id && t.type === 'RETURN' && t.status === 'PENDING')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const spendableCash = Math.max(0, activeSupBalance.remainingCash - pendingReturns);
 
   return (
     <div className={`fixed inset-0 w-full h-[100dvh] lg:h-auto lg:relative lg:min-h-screen flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#0B1C2C] text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
@@ -555,10 +717,16 @@ export default function App() {
                         <SupervisorDashboardView
                           user={currentUser}
                           balance={activeSupBalance}
+                          spendableCash={spendableCash}
                           transactions={transactions}
                           darkMode={darkMode}
                           onAddExpenseClick={() => setActiveScreen('ADD_EXPENSE')}
+                          onReturnCashClick={() => setActiveScreen('RETURN_CASH')}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
+                          onEditExpense={(tx) => {
+                            setSelectedTxDetails(tx);
+                            setActiveScreen('EDIT_EXPENSE');
+                          }}
                         />
                       )}
 
@@ -570,6 +738,10 @@ export default function App() {
                           onReviewTransaction={handleReviewTransaction}
                           selectedTxDetails={selectedTxDetails}
                           setSelectedTxDetails={setSelectedTxDetails}
+                          onEditExpense={(tx) => {
+                            setSelectedTxDetails(tx);
+                            setActiveScreen('EDIT_EXPENSE');
+                          }}
                         />
                       )}
 
@@ -578,7 +750,29 @@ export default function App() {
                           onSaveExpense={handleSaveExpense}
                           onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
                           darkMode={darkMode}
-                          availableBalance={activeSupBalance.remainingCash}
+                          availableBalance={spendableCash}
+                        />
+                      )}
+
+                      {activeScreen === 'RETURN_CASH' && (
+                        <ReturnCashView
+                          onReturnCash={handleReturnCash}
+                          onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
+                          darkMode={darkMode}
+                          availableBalance={spendableCash}
+                        />
+                      )}
+
+                      {activeScreen === 'EDIT_EXPENSE' && selectedTxDetails && (
+                        <EditExpenseView
+                          transaction={selectedTxDetails}
+                          onUpdateExpense={handleUpdateExpense}
+                          onCancel={() => {
+                            setActiveScreen('SUPERVISOR_DASHBOARD');
+                            setSelectedTxDetails(null);
+                          }}
+                          darkMode={darkMode}
+                          availableBalance={activeSupBalance.remainingCash + selectedTxDetails.amount}
                         />
                       )}
 
@@ -589,6 +783,8 @@ export default function App() {
                           userRole={currentUser.role}
                           activeUser={currentUser}
                           darkMode={darkMode}
+                          onMarkMistake={handleMarkMistake}
+                          onApproveDaily={handleApproveDaily}
                         />
                       )}
 
@@ -605,7 +801,7 @@ export default function App() {
                     </div>
 
                     {/* Navigation bar at bottom of mobile view */}
-                    {activeScreen !== 'ADD_EXPENSE' && (
+                    {activeScreen !== 'ADD_EXPENSE' && activeScreen !== 'EDIT_EXPENSE' && activeScreen !== 'RETURN_CASH' && (
                       <BottomNav
                         activeScreen={activeScreen}
                         setActiveScreen={setActiveScreen}
