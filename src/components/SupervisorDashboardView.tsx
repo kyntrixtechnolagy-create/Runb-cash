@@ -16,7 +16,8 @@ import {
   Compass,
   FileSpreadsheet,
   AlertCircle,
-  Undo2
+  Undo2,
+  Coins
 } from 'lucide-react';
 import { User, SupervisorBalance, Transaction } from '../types';
 
@@ -29,8 +30,11 @@ interface SupervisorDashboardViewProps {
   onAddExpenseClick: () => void;
   onReturnCashClick: () => void;
   onCollectCashClick: () => void;
+  onRequestCashClick: () => void;
   onViewTransactionDetails: (tx: Transaction) => void;
   onEditExpense?: (tx: Transaction) => void;
+  onApproveTransfer?: (txId: string, userId: string) => void;
+  onDeclineTransfer?: (txId: string, userId: string) => void;
 }
 
 export default function SupervisorDashboardView({
@@ -42,8 +46,11 @@ export default function SupervisorDashboardView({
   onAddExpenseClick,
   onReturnCashClick,
   onCollectCashClick,
+  onRequestCashClick,
   onViewTransactionDetails,
-  onEditExpense
+  onEditExpense,
+  onApproveTransfer,
+  onDeclineTransfer
 }: SupervisorDashboardViewProps) {
   // Filter transactions for this supervisor
   const myTransactions = transactions.filter((t) => t.supervisorId === user.id);
@@ -70,6 +77,15 @@ export default function SupervisorDashboardView({
   // Limit alerts
   const ratioUsed = totalFundingAllocated > 0 ? (overallSpentApproved / totalFundingAllocated) * 100 : 0;
 
+  // Pending Transfers
+  const myPendingTransfers = transactions.filter(t => {
+    if (t.category !== 'STAFF_TRANSFER' || t.status !== 'PENDING' || !t.description) return false;
+    try {
+      const state = JSON.parse(t.description);
+      return t.supervisorId === user.id || state.receiverId === user.id;
+    } catch { return false; }
+  });
+
   return (
     <div className="flex-1 overflow-y-auto no-scrollbar pb-28 p-4 space-y-5 relative">
       {/* Dynamic Header Banner / Profile Welcome */}
@@ -95,6 +111,13 @@ export default function SupervisorDashboardView({
                title="Receive Cash at Site"
             >
               <ArrowDownLeft className="w-5 h-5 text-emerald-100" />
+            </button>
+            <button 
+               onClick={onRequestCashClick}
+               className="w-10 h-10 bg-blue-500/20 hover:bg-blue-500/40 backdrop-blur-md rounded-xl flex items-center justify-center border border-blue-500/30 transition-colors cursor-pointer"
+               title="Request Cash from Owner"
+            >
+              <Coins className="w-5 h-5 text-blue-100" />
             </button>
             <button 
                onClick={onReturnCashClick}
@@ -165,6 +188,53 @@ export default function SupervisorDashboardView({
         </div>
       </div>
 
+      {myPendingTransfers.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Pending Transfer Requests</h4>
+          {myPendingTransfers.map(tx => {
+            const state = JSON.parse(tx.description);
+            const isSender = tx.supervisorId === user.id;
+            const hasApproved = isSender ? state.senderApproved : state.receiverApproved;
+
+            return (
+              <div key={tx.id} className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-blue-900/50' : 'bg-blue-50/50 border-blue-100'}`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">Transfer Request</div>
+                    <div className="text-lg font-bold font-mono">Rs. {tx.amount.toLocaleString()}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs font-bold text-slate-500">From: {tx.supervisorName}</div>
+                    <div className="text-xs font-bold text-slate-500">To: {state.receiverName}</div>
+                  </div>
+                </div>
+                
+                {hasApproved ? (
+                  <div className="text-xs font-bold text-slate-400 text-center py-2 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                    Waiting for the other party to approve.
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onApproveTransfer && onApproveTransfer(tx.id, user.id)}
+                      className="flex-1 py-2 bg-blue-500 text-white font-bold text-xs rounded-xl hover:bg-blue-600 active:scale-95 transition-all"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => onDeclineTransfer && onDeclineTransfer(tx.id, user.id)}
+                      className="flex-1 py-2 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 font-bold text-xs rounded-xl hover:bg-red-200 active:scale-95 transition-all"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Simple Ledger Progress Chart */}
       <div className={`p-4 rounded-2xl border transition-all-300 ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
@@ -225,14 +295,25 @@ export default function SupervisorDashboardView({
 
                   <div>
                     <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.category}</div>
-                    <div className="text-xs font-bold mt-0.5 line-clamp-1">{tx.description}</div>
+                    <div className="text-xs font-bold mt-0.5 line-clamp-1">
+                      {tx.category === 'STAFF_TRANSFER' ? (() => {
+                        try {
+                          const state = JSON.parse(tx.description);
+                          return tx.type === 'INCOME' ? `Received from ${tx.supervisorName}` : `Transfer to ${state.receiverName}`;
+                        } catch { return tx.description; }
+                      })() : tx.category === 'Allocation' ? (() => {
+                        try {
+                          return JSON.parse(tx.description).note;
+                        } catch { return tx.description; }
+                      })() : tx.description}
+                    </div>
                     <div className="text-[10px] text-slate-500 mt-0.5">{tx.date}</div>
                   </div>
                 </div>
 
                 <div className="text-right flex flex-col items-end gap-1">
                   <span className={`text-xs font-bold font-mono ${
-                    tx.type === 'INCOME' ? 'text-emerald-500' : tx.type === 'RETURN' ? 'text-purple-500' : 'text-slate-800 dark:text-slate-200'
+                    tx.type === 'INCOME' ? 'text-emerald-500' : tx.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'
                   }`}>
                     {tx.type === 'INCOME' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                   </span>
@@ -250,9 +331,22 @@ export default function SupervisorDashboardView({
                       </span>
                     )}
                     {tx.status === 'REJECTED' && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[9px] font-bold">
-                        <XCircle className="w-2 h-2" /> Rejected
-                      </span>
+                      <div className="flex flex-col items-end gap-1 mt-1">
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[9px] font-bold">
+                          <XCircle className="w-2 h-2" /> Rejected
+                        </span>
+                        {onEditExpense && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditExpense(tx);
+                            }}
+                            className="text-[9px] font-bold px-2 py-1 bg-red-500 text-white rounded-md active:scale-95 cursor-pointer"
+                          >
+                            Edit Expense
+                          </button>
+                        )}
+                      </div>
                     )}
                     {tx.status === 'NEEDS_CORRECTION' && (
                       <div className="flex flex-col items-end gap-1 mt-1">

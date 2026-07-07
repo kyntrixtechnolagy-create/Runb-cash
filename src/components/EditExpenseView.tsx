@@ -107,13 +107,11 @@ export default function EditExpenseView({
   };
 
   return (
-    <div className={`absolute inset-0 flex flex-col justify-between pb-24 overflow-y-auto no-scrollbar transition-colors duration-300 ${
-      darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
-    }`}>
-      {/* Dynamic Screen Header */}
-      <div className={`p-4 flex items-center justify-between border-b sticky top-0 z-20 backdrop-blur-md ${
-        darkMode ? 'bg-slate-950/80 border-slate-900' : 'bg-white/80 border-slate-100'
+    <div className={`absolute inset-0 flex flex-col justify-between pb-24 overflow-y-auto no-scrollbar transition-colors duration-300 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
       }`}>
+      {/* Dynamic Screen Header */}
+      <div className={`p-4 flex items-center justify-between border-b sticky top-0 z-20 backdrop-blur-md ${darkMode ? 'bg-slate-950/80 border-slate-900' : 'bg-white/80 border-slate-100'
+        }`}>
         <button
           onClick={onCancel}
           className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-xs font-bold"
@@ -144,11 +142,10 @@ export default function EditExpenseView({
         )}
 
         {/* Large Amount Field */}
-        <div className={`p-5 rounded-3xl border text-center transition-all-300 ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div className={`p-5 rounded-3xl border text-center transition-all-300 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Correct the amount</span>
-          
+
           <div className="relative mt-2 max-w-xs mx-auto flex items-center justify-center">
             <span className="text-2xl font-bold text-brand-teal mr-1.5">Rs.</span>
             <input
@@ -186,13 +183,12 @@ export default function EditExpenseView({
                   key={cat.name}
                   type="button"
                   onClick={() => setSelectedCategory(cat.name)}
-                  className={`flex items-center gap-2 py-2 px-3.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${
-                    isSelected
-                      ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20 scale-[1.03]'
-                      : darkMode
+                  className={`flex items-center gap-2 py-2 px-3.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${isSelected
+                    ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20 scale-[1.03]'
+                    : darkMode
                       ? 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-100'
                       : 'bg-white border border-slate-100 text-slate-600 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   <span className="text-[12px]">{cat.name}</span>
                 </button>
@@ -203,11 +199,10 @@ export default function EditExpenseView({
               <button
                 type="button"
                 onClick={() => setShowNewCategoryForm(true)}
-                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed ${
-                  darkMode
-                    ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
-                    : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
-                }`}
+                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed ${darkMode
+                  ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
+                  : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
+                  }`}
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>+ Custom</span>
@@ -273,11 +268,10 @@ export default function EditExpenseView({
               setErrorMsg('');
             }}
             rows={2.5}
-            className={`w-full p-3.5 text-xs rounded-2xl border outline-none transition-all-300 resize-none font-medium ${
-              darkMode
-                ? 'bg-slate-900 border-slate-800 focus:border-teal-500 text-white'
-                : 'bg-white border-slate-200 focus:border-teal-500 text-slate-800'
-            }`}
+            className={`w-full p-3.5 text-xs rounded-2xl border outline-none transition-all-300 resize-none font-medium ${darkMode
+              ? 'bg-slate-900 border-slate-800 focus:border-teal-500 text-white'
+              : 'bg-white border-slate-200 focus:border-teal-500 text-slate-800'
+              }`}
           />
         </div>
 
@@ -290,9 +284,8 @@ export default function EditExpenseView({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className={`w-full py-2.5 pl-11 pr-4 text-xs font-bold rounded-2xl border outline-none ${
-                darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200'
-              }`}
+              className={`w-full py-2.5 pl-11 pr-4 text-xs font-bold rounded-2xl border outline-none ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200'
+                }`}
               required
             />
           </div>
@@ -303,9 +296,8 @@ export default function EditExpenseView({
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">Update Receipt (Optional)</span>
 
           {receiptUrl ? (
-            <div className={`p-3 rounded-2xl border transition-all-300 flex items-center justify-between ${
-              darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-            }`}>
+            <div className={`p-3 rounded-2xl border transition-all-300 flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+              }`}>
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100">
                   <img
@@ -355,11 +347,10 @@ export default function EditExpenseView({
                       key={idx}
                       type="button"
                       onClick={() => handleSelectMockReceipt(m.name, m.url)}
-                      className={`p-2 rounded-xl border text-left text-[11px] font-bold transition-all duration-200 flex items-center gap-1.5 hover:scale-[1.01] ${
-                        darkMode
-                          ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
-                          : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-700'
-                      }`}
+                      className={`p-2 rounded-xl border text-left text-[11px] font-bold transition-all duration-200 flex items-center gap-1.5 hover:scale-[1.01] ${darkMode
+                        ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+                        : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-700'
+                        }`}
                     >
                       <Paperclip className="w-3.5 h-3.5 text-teal-500" />
                       <span className="truncate">{m.name}</span>

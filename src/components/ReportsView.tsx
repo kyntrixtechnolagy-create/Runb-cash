@@ -32,6 +32,8 @@ interface ReportsViewProps {
   darkMode: boolean;
   onMarkMistake?: (txId: string, note: string) => void;
   onApproveDaily?: (supervisorId: string, date: string) => void;
+  initialSupFilter?: string;
+  initialReportType?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR';
 }
 
 export default function ReportsView({
@@ -41,9 +43,11 @@ export default function ReportsView({
   activeUser,
   darkMode,
   onMarkMistake,
-  onApproveDaily
+  onApproveDaily,
+  initialSupFilter,
+  initialReportType
 }: ReportsViewProps) {
-  const [reportType, setReportType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR'>('DAILY');
+  const [reportType, setReportType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR'>(initialReportType || 'DAILY');
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 15);
@@ -51,7 +55,7 @@ export default function ReportsView({
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [supervisorDate, setSupervisorDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedSupFilter, setSelectedSupFilter] = useState('ALL');
+  const [selectedSupFilter, setSelectedSupFilter] = useState(initialSupFilter || 'ALL');
   
   const [showMistakeForm, setShowMistakeForm] = useState(false);
   const [mistakeTxId, setMistakeTxId] = useState('');
@@ -515,7 +519,26 @@ export default function ReportsView({
                     <span>{t.category}</span>
                     <span className="text-slate-400">by {t.supervisorName}</span>
                   </div>
-                  <div className="font-bold text-slate-800 dark:text-slate-200 mt-1 line-clamp-1">{t.description}</div>
+                  <div className="font-bold text-slate-800 dark:text-slate-200 mt-1 line-clamp-1">
+                    {t.category === 'STAFF_TRANSFER' ? (() => {
+                      try {
+                        const state = JSON.parse(t.description);
+                        return t.type === 'INCOME' ? `Received from ${t.supervisorName}` : `Transfer to ${state.receiverName}`;
+                      } catch { return t.description; }
+                    })() : t.category === 'Allocation' ? (() => {
+                      try {
+                        const d = JSON.parse(t.description);
+                        if (isOwner) {
+                          return (
+                            <span>
+                              {d.note} <span className="text-[10px] text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded ml-1 font-normal">{d.paymentMethod === 'ONLINE' ? `Online: ${d.bankName}` : 'Cash'}</span>
+                            </span>
+                          );
+                        }
+                        return d.note;
+                      } catch { return t.description; }
+                    })() : t.description}
+                  </div>
                   <div className="text-[9px] text-slate-400 mt-0.5">{t.date}</div>
                 </div>
                 <div className="text-right">

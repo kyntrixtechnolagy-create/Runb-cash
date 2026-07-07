@@ -37,6 +37,8 @@ interface OwnerDashboardViewProps {
   onReviewTransaction: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   onViewTransactionDetails: (tx: Transaction) => void;
   onEditStaff: (id: string, name: string, designation: string, phone: string, spendLimit: number) => void;
+  onCreateTransfer?: (senderId: string, receiverId: string, amount: number) => void;
+  onViewStaffAudit?: (staffId: string) => void;
 }
 
 export default function OwnerDashboardView({
@@ -49,15 +51,25 @@ export default function OwnerDashboardView({
   onAddSupervisor,
   onReviewTransaction,
   onViewTransactionDetails,
-  onEditStaff
+  onEditStaff,
+  onCreateTransfer,
+  onViewStaffAudit
 }: OwnerDashboardViewProps) {
   const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [showAddSupModal, setShowAddSupModal] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   // Form states for Allocating Cash
   const [allocSupId, setAllocSupId] = useState('');
   const [allocAmount, setAllocAmount] = useState('');
   const [allocNotes, setAllocNotes] = useState('');
+  const [allocPaymentMethod, setAllocPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH');
+  const [allocBankName, setAllocBankName] = useState('');
+
+  // Form states for Transferring Cash
+  const [transferSenderId, setTransferSenderId] = useState('');
+  const [transferReceiverId, setTransferReceiverId] = useState('');
+  const [transferAmount, setTransferAmount] = useState('');
 
   // Form states for Adding Supervisor
   const [newSupName, setNewSupName] = useState('');
@@ -74,7 +86,9 @@ export default function OwnerDashboardView({
   const [editPhone, setEditPhone] = useState('');
   const [editSpendLimit, setEditSpendLimit] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [staffDetailsDate, setStaffDetailsDate] = useState('');
+  const [staffDetailsDate, setStaffDetailsDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
   const openEditStaff = (staff: User) => {
     setEditingStaff(staff);
@@ -110,16 +124,38 @@ export default function OwnerDashboardView({
   const liveTotalLiquidValue = remainingTreasury + supervisorRemaining;
 
   // Filter pending approvals
-  const pendingTransactions = transactions.filter((t) => t.status === 'PENDING');
+  const ownerPendingTransactions = transactions.filter((t) => t.status === 'PENDING' && t.category !== 'STAFF_TRANSFER');
+  const staffTransferPending = transactions.filter((t) => t.status === 'PENDING' && t.category === 'STAFF_TRANSFER');
 
   const handleAllocateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!allocSupId || !allocAmount || Number(allocAmount) <= 0) return;
-    onAllocateCash(allocSupId, Number(allocAmount), allocNotes || 'Budget Top-up');
-    setShowAllocateModal(false);
+
+    const payload = JSON.stringify({
+      note: allocNotes || 'Owner allocation',
+      paymentMethod: allocPaymentMethod,
+      bankName: allocPaymentMethod === 'ONLINE' ? allocBankName : ''
+    });
+
+    onAllocateCash(allocSupId, Number(allocAmount), payload);
     setAllocSupId('');
     setAllocAmount('');
     setAllocNotes('');
+    setAllocPaymentMethod('CASH');
+    setAllocBankName('');
+    setShowAllocateModal(false);
+  };
+
+  const handleTransferSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferSenderId || !transferReceiverId || transferSenderId === transferReceiverId || !transferAmount || Number(transferAmount) <= 0) return;
+    if (onCreateTransfer) {
+      onCreateTransfer(transferSenderId, transferReceiverId, Number(transferAmount));
+    }
+    setShowTransferModal(false);
+    setTransferSenderId('');
+    setTransferReceiverId('');
+    setTransferAmount('');
   };
 
   const handleAddSupSubmit = (e: React.FormEvent) => {
@@ -157,7 +193,8 @@ export default function OwnerDashboardView({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-[24px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden"
+        onClick={() => document.getElementById('all-staff-details')?.scrollIntoView({ behavior: 'smooth' })}
+        className="rounded-[24px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden cursor-pointer"
       >
         {/* Subtle decorative circles */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10" />
@@ -194,9 +231,10 @@ export default function OwnerDashboardView({
       {/* Corporate Summary Cards Grid */}
       <div className="grid grid-cols-2 gap-3">
         {/* Supervisors Card */}
-        <div className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div 
+          onClick={() => document.getElementById('all-staff-details')?.scrollIntoView({ behavior: 'smooth' })}
+          className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+          }`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400">Staff</span>
             <div className="p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -210,9 +248,10 @@ export default function OwnerDashboardView({
         </div>
 
         {/* Pending Approval Card */}
-        <div className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div 
+          onClick={() => document.getElementById('pending-approvals-section')?.scrollIntoView({ behavior: 'smooth' })}
+          className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+          }`}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400">Pending</span>
             <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
@@ -228,9 +267,8 @@ export default function OwnerDashboardView({
         </div>
 
         {/* Expenses Card (Full Width) */}
-        <div className={`col-span-2 p-4 rounded-[20px] border shadow-sm transition-all-300 flex items-center justify-between ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div className={`col-span-2 p-4 rounded-[20px] border shadow-sm transition-all-300 flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs font-bold text-slate-400">Total Spent</span>
@@ -239,7 +277,7 @@ export default function OwnerDashboardView({
             <span className="text-[10px] text-slate-400 font-medium">Approved purchases</span>
           </div>
           <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl">
-             <TrendingDown className="w-6 h-6 text-red-500" />
+            <TrendingDown className="w-6 h-6 text-red-500" />
           </div>
         </div>
       </div>
@@ -247,32 +285,40 @@ export default function OwnerDashboardView({
       {/* Quick Action Hub */}
       <div className="space-y-2">
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">What do you want to do?</h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 mb-6">
           <button
             onClick={() => setShowAllocateModal(true)}
             className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition-all-300 shadow-md shadow-blue-500/10 active:scale-95 cursor-pointer"
           >
             <Coins className="w-4 h-4" />
-            <span>Send Money to a Staff</span>
+            <span>Send Money</span>
           </button>
           <button
             onClick={() => setShowAddSupModal(true)}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${
-              darkMode
-                ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
-                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
-            }`}
+            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
+              ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+              : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
+              }`}
           >
             <Plus className="w-4 h-4 text-teal-500" />
-            <span>Register a New Staff</span>
+            <span>New Staff</span>
+          </button>
+          <button
+            onClick={() => setShowTransferModal(true)}
+            className={`col-span-2 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
+              ? 'bg-blue-900/20 border-blue-800 hover:bg-blue-900/40 text-blue-400'
+              : 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-600'
+              }`}
+          >
+            <ArrowUpRight className="w-4 h-4" />
+            <span>Staff to Staff Transfer</span>
           </button>
         </div>
       </div>
 
       {/* Interactive Micro-Chart */}
-      <div className={`p-4 rounded-3xl border transition-all-300 ${
-        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-      }`}>
+      <div className={`p-4 rounded-3xl border transition-all-300 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Weekly Money History</h4>
@@ -323,23 +369,22 @@ export default function OwnerDashboardView({
       </div>
 
       {/* Pending Reviews / Claims (Owner Duty) */}
-      {pendingTransactions.length > 0 && (
-        <div className="space-y-2">
+      {ownerPendingTransactions.length > 0 && (
+        <div id="pending-approvals-section" className="space-y-2">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Needs Your Approval</h4>
             <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-bold">
-              {pendingTransactions.length} TO REVIEW
+              {ownerPendingTransactions.length} TO REVIEW
             </span>
           </div>
 
           <div className="space-y-2.5">
-            {pendingTransactions.map((tx) => (
+            {ownerPendingTransactions.map((tx) => (
               <motion.div
                 key={tx.id}
                 layoutId={tx.id}
-                className={`p-3.5 rounded-2xl border transition-all-300 flex flex-col gap-3 ${
-                  darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-                }`}
+                className={`p-3.5 rounded-2xl border transition-all-300 flex flex-col gap-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+                  }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
@@ -347,8 +392,24 @@ export default function OwnerDashboardView({
                       {tx.type === 'INCOME' ? '+' : tx.type === 'RETURN' ? 'R' : tx.category[0]}
                     </div>
                     <div>
-                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.type === 'RETURN' ? 'Cash Return' : tx.type === 'INCOME' ? 'Received Cash' : tx.category}</div>
-                      <div className="text-sm font-bold mt-0.5 line-clamp-1">{tx.description}</div>
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">{tx.type === 'RETURN' ? 'Cash Return' : tx.category === 'CASH_REQUEST' ? 'Cash Request' : tx.type === 'INCOME' ? 'Received Cash' : tx.category}</div>
+                      <div className="text-sm font-bold mt-0.5 line-clamp-1">
+                        {(() => {
+                          if (tx.category === 'Allocation') {
+                            try {
+                              const d = JSON.parse(tx.description);
+                              return (
+                                <span>
+                                  {d.note} <span className="text-[10px] text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded ml-1">{d.paymentMethod === 'ONLINE' ? `Online: ${d.bankName}` : 'Cash'}</span>
+                                </span>
+                              );
+                            } catch {
+                              return tx.description;
+                            }
+                          }
+                          return tx.description;
+                        })()}
+                      </div>
                       <div className="text-[11px] text-slate-500 mt-0.5">By {tx.supervisorName} • {tx.date}</div>
                     </div>
                   </div>
@@ -372,20 +433,18 @@ export default function OwnerDashboardView({
                 <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5">
                   <button
                     onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
-                    className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${
-                      tx.type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700' : tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
+                    className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${tx.type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700' : tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
                   >
                     <Check className="w-3.5 h-3.5" />
-                    <span>{tx.type === 'INCOME' ? 'Approve Collection' : tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
+                    <span>{tx.category === 'CASH_REQUEST' ? 'Approve Request' : tx.type === 'INCOME' ? 'Approve Collection' : tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
                   </button>
                   <button
                     onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
-                    className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${
-                      darkMode
-                        ? 'border-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400'
-                        : 'border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500'
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${darkMode
+                      ? 'border-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400'
+                      : 'border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500'
+                      }`}
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Decline / Reject</span>
@@ -393,6 +452,47 @@ export default function OwnerDashboardView({
                 </div>
               </motion.div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Staff to Staff Pending Transfers info */}
+      {staffTransferPending.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Pending Staff Transfers</h4>
+          <div className="space-y-2.5">
+            {staffTransferPending.map((tx) => {
+              let state: any = {};
+              try { state = JSON.parse(tx.description); } catch {}
+              
+              return (
+                <div
+                  key={tx.id}
+                  className={`p-3.5 rounded-2xl border transition-all-300 flex flex-col gap-2 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-blue-50/50 border-blue-100'
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center text-xs">
+                        <ArrowUpRight className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-300">Staff Transfer</div>
+                        <div className="text-[10px] text-slate-500">From {tx.supervisorName} to {state.receiverName || 'another staff'}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold font-mono text-blue-600 dark:text-blue-400">
+                        Rs. {tx.amount.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] font-bold text-blue-500 text-center uppercase tracking-wide py-1.5 bg-blue-100 dark:bg-blue-900/30 rounded-xl mt-1">
+                    Waiting for staff approvals
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -408,9 +508,8 @@ export default function OwnerDashboardView({
             return (
               <div
                 key={b.supervisorId}
-                className={`p-3.5 rounded-2xl border transition-all-300 ${
-                  darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-                }`}
+                className={`p-3.5 rounded-2xl border transition-all-300 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -425,13 +524,12 @@ export default function OwnerDashboardView({
                 <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     style={{ width: `${usagePercent}%` }}
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      isCritical
-                        ? 'bg-gradient-to-r from-red-500 to-orange-500'
-                        : usagePercent > 50
+                    className={`h-full rounded-full transition-all duration-500 ${isCritical
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500'
+                      : usagePercent > 50
                         ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
                         : 'bg-gradient-to-r from-teal-500 to-blue-500'
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -455,7 +553,7 @@ export default function OwnerDashboardView({
       </div>
 
       {/* ══ ALL STAFF DETAILS ══ */}
-      <div className="space-y-2">
+      <div id="all-staff-details" className="space-y-2 pt-2">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">All Staff Details</h4>
           <div className="flex items-center gap-2">
@@ -463,28 +561,25 @@ export default function OwnerDashboardView({
               type="date"
               value={staffDetailsDate}
               onChange={(e) => setStaffDetailsDate(e.target.value)}
-              className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${
-                darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'
-              }`}
+              className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}
             />
             {staffDetailsDate && (
-              <button 
+              <button
                 onClick={() => setStaffDetailsDate('')}
                 className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-1"
               >
                 Clear
               </button>
             )}
-            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-              darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'
-            }`}>{supervisors.length} members</span>
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'
+              }`}>{supervisors.length} members</span>
           </div>
         </div>
 
         {supervisors.length === 0 ? (
-          <div className={`p-5 rounded-2xl border text-center ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-          }`}>
+          <div className={`p-5 rounded-2xl border text-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+            }`}>
             <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-xs text-slate-400 font-semibold">No staff registered yet.</p>
             <p className="text-[10px] text-slate-400 mt-0.5">Use "Register a New Staff" to add your team.</p>
@@ -498,9 +593,9 @@ export default function OwnerDashboardView({
                   key={s.id}
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`p-4 rounded-2xl border transition-all-300 ${
-                    darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-                  }`}
+                  onClick={() => onViewStaffAudit && onViewStaffAudit(s.id)}
+                  className={`p-4 rounded-2xl border transition-all-300 cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     {/* Avatar + Name */}
@@ -517,7 +612,10 @@ export default function OwnerDashboardView({
                     </div>
                     {/* Edit Button */}
                     <button
-                      onClick={() => openEditStaff(s)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEditStaff(s);
+                      }}
                       className="p-2 rounded-xl bg-teal-500/10 text-teal-600 hover:bg-teal-500/20 transition-colors shrink-0 cursor-pointer"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -540,21 +638,31 @@ export default function OwnerDashboardView({
 
                   {/* Balance Chips */}
                   {bal && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 grid grid-cols-4 gap-2">
-                      <div className={`rounded-xl p-2 text-center ${
-                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                      }`}>
+                    <div className={`mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 grid ${staffDetailsDate ? 'grid-cols-5' : 'grid-cols-4'} gap-2`}>
+                      {staffDetailsDate && (
+                        <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
+                          <div className="text-[9px] font-bold text-slate-400 uppercase">Opening</div>
+                          <div className="text-xs font-bold font-mono text-slate-500 mt-0.5">
+                            Rs. {(
+                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                            ).toLocaleString()}
+                          </div>
+                        </div>
+                      )}
+                      <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                        }`}>
                         <div className="text-[9px] font-bold text-slate-400 uppercase">Given</div>
                         <div className="text-xs font-bold font-mono text-blue-500 mt-0.5">
-                          Rs. {(staffDetailsDate 
+                          Rs. {(staffDetailsDate
                             ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : bal.allocatedCash + transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                           ).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`rounded-xl p-2 text-center ${
-                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                      }`}>
+                      <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                        }`}>
                         <div className="text-[9px] font-bold text-slate-400 uppercase">Spent</div>
                         <div className="text-xs font-bold font-mono text-red-500 mt-0.5">
                           Rs. {(staffDetailsDate
@@ -563,9 +671,8 @@ export default function OwnerDashboardView({
                           ).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`rounded-xl p-2 text-center ${
-                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                      }`}>
+                      <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                        }`}>
                         <div className="text-[9px] font-bold text-slate-400 uppercase">Returned</div>
                         <div className="text-xs font-bold font-mono text-purple-500 mt-0.5">
                           Rs. {(staffDetailsDate
@@ -574,11 +681,22 @@ export default function OwnerDashboardView({
                           ).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`rounded-xl p-2 text-center flex flex-col justify-center items-center ${
-                        darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                      }`}>
+                      <div className={`rounded-xl p-2 text-center flex flex-col justify-center items-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
+                        }`}>
                         <div className="text-[9px] font-bold text-slate-400 uppercase">{staffDetailsDate ? 'Cur. Left' : 'Left'}</div>
-                        <div className="text-xs font-bold font-mono text-teal-500 mt-0.5">Rs. {bal.remainingCash.toLocaleString()}</div>
+                        <div className="text-xs font-bold font-mono text-teal-500 mt-0.5">Rs. {
+                          staffDetailsDate ? (
+                            (
+                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                            ) +
+                            transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                            transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                            transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                          ).toLocaleString() :
+                          bal.remainingCash.toLocaleString()
+                        }</div>
                       </div>
                     </div>
                   )}
@@ -595,9 +713,8 @@ export default function OwnerDashboardView({
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
-            }`}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+              }`}
           >
             <button
               onClick={() => setEditingStaff(null)}
@@ -625,9 +742,8 @@ export default function OwnerDashboardView({
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
-                  }`}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                    }`}
                 />
               </div>
               <div className="space-y-1">
@@ -636,9 +752,8 @@ export default function OwnerDashboardView({
                   type="text"
                   value={editDesig}
                   onChange={(e) => setEditDesig(e.target.value)}
-                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
-                  }`}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                    }`}
                 />
               </div>
               <div className="space-y-1">
@@ -647,21 +762,8 @@ export default function OwnerDashboardView({
                   type="text"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
-                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
-                  }`}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Total Spending Limit</label>
-                <input
-                  type="number"
-                  value={editSpendLimit}
-                  onChange={(e) => setEditSpendLimit(e.target.value)}
-                  placeholder="e.g. 5000"
-                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
-                  }`}
+                  className={`w-full p-2.5 text-sm rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-700 text-white focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'
+                    }`}
                 />
               </div>
             </div>
@@ -684,9 +786,8 @@ export default function OwnerDashboardView({
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
-            }`}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+              }`}
           >
             <button
               onClick={() => setShowAllocateModal(false)}
@@ -704,9 +805,8 @@ export default function OwnerDashboardView({
                 <select
                   value={allocSupId}
                   onChange={(e) => setAllocSupId(e.target.value)}
-                  className={`w-full p-2.5 text-xs font-bold rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
+                  className={`w-full p-2.5 text-xs font-bold rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
                   required
                 >
                   <option value="">-- Click to select a person --</option>
@@ -727,9 +827,8 @@ export default function OwnerDashboardView({
                     placeholder="1500"
                     value={allocAmount}
                     onChange={(e) => setAllocAmount(e.target.value)}
-                    className={`w-full py-2 pl-10 pr-3 text-sm rounded-xl border outline-none font-semibold ${
-                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
+                    className={`w-full py-2 pl-10 pr-3 text-sm rounded-xl border outline-none font-semibold ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}
                     min="1"
                     required
                   />
@@ -743,11 +842,45 @@ export default function OwnerDashboardView({
                   placeholder="For example: Weekly spending money"
                   value={allocNotes}
                   onChange={(e) => setAllocNotes(e.target.value)}
-                  className={`w-full p-2.5 text-xs rounded-xl border outline-none font-medium ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none font-medium ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
                 />
               </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400">Payment Method</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAllocPaymentMethod('CASH')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors border ${allocPaymentMethod === 'CASH' ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/20' : (darkMode ? 'bg-slate-900 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}
+                  >
+                    Cash
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAllocPaymentMethod('ONLINE')}
+                    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors border ${allocPaymentMethod === 'ONLINE' ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/20' : (darkMode ? 'bg-slate-900 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-600')}`}
+                  >
+                    Online Payment
+                  </button>
+                </div>
+              </div>
+
+              {allocPaymentMethod === 'ONLINE' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400">Bank Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. HDFC, ICICI, SBI"
+                    value={allocBankName}
+                    onChange={(e) => setAllocBankName(e.target.value)}
+                    className={`w-full p-2.5 text-xs rounded-xl border outline-none font-medium ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}
+                    required={allocPaymentMethod === 'ONLINE'}
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -766,9 +899,8 @@ export default function OwnerDashboardView({
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
-            }`}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl relative ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+              }`}
           >
             <button
               onClick={() => setShowAddSupModal(false)}
@@ -788,9 +920,8 @@ export default function OwnerDashboardView({
                   placeholder="Robert Carter"
                   value={newSupName}
                   onChange={(e) => setNewSupName(e.target.value)}
-                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
                   required
                 />
               </div>
@@ -802,9 +933,8 @@ export default function OwnerDashboardView({
                   placeholder="robert.carter@buildcorp.com"
                   value={newSupEmail}
                   onChange={(e) => setNewSupEmail(e.target.value)}
-                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
                   required
                 />
               </div>
@@ -816,9 +946,8 @@ export default function OwnerDashboardView({
                   placeholder="Secret password for staff"
                   value={newSupPassword}
                   onChange={(e) => setNewSupPassword(e.target.value)}
-                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
                   required
                 />
               </div>
@@ -830,9 +959,8 @@ export default function OwnerDashboardView({
                   placeholder="Warehouse Inventory Lead"
                   value={newSupDesig}
                   onChange={(e) => setNewSupDesig(e.target.value)}
-                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
+                  className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
                   required
                 />
               </div>
@@ -845,33 +973,110 @@ export default function OwnerDashboardView({
                     placeholder="+1 (555) 012-3456"
                     value={addSupPhone}
                     onChange={(e) => setAddSupPhone(e.target.value)}
-                    className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
-                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
+                    className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}
                   />
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400">Total Spending Limit</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    placeholder="e.g. 5000"
-                    value={addSupSpendLimit}
-                    onChange={(e) => setAddSupSpendLimit(e.target.value)}
-                    className={`w-full p-2 text-xs font-bold rounded-xl border outline-none ${
-                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
-                  />
-                </div>
-              </div>
-
               <button
                 type="submit"
                 className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors shadow-lg shadow-teal-500/25 mt-2 cursor-pointer"
               >
                 Create Account
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    {/* Staff to Staff Transfer Modal */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden ${
+              darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white'
+            }`}
+          >
+            <div className={`p-5 flex items-center justify-between border-b ${
+              darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-100 bg-slate-50/50'
+            }`}>
+              <h3 className="font-display font-bold text-lg text-slate-800 dark:text-white">Staff to Staff Transfer</h3>
+              <button
+                onClick={() => setShowTransferModal(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-200/50 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleTransferSubmit} className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5 ml-1">From Staff (Sender)</label>
+                <select
+                  value={transferSenderId}
+                  onChange={(e) => setTransferSenderId(e.target.value)}
+                  className={`w-full p-3 rounded-2xl text-sm font-bold border outline-none transition-colors ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                  required
+                >
+                  <option value="">Select sender...</option>
+                  {supervisors.map(s => {
+                    const bal = balances.find(b => b.supervisorId === s.id)?.remainingCash || 0;
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.name} - Bal: Rs. {bal.toLocaleString()}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5 ml-1">To Staff (Receiver)</label>
+                <select
+                  value={transferReceiverId}
+                  onChange={(e) => setTransferReceiverId(e.target.value)}
+                  className={`w-full p-3 rounded-2xl text-sm font-bold border outline-none transition-colors ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+                  required
+                >
+                  <option value="">Select receiver...</option>
+                  {supervisors.map(s => {
+                    const bal = balances.find(b => b.supervisorId === s.id)?.remainingCash || 0;
+                    return (
+                      <option key={s.id} value={s.id} disabled={s.id === transferSenderId}>
+                        {s.name} - Bal: Rs. {bal.toLocaleString()}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+              
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wide block mb-1.5 ml-1">Amount (Rs.)</label>
+                <input
+                  type="number"
+                  value={transferAmount}
+                  onChange={(e) => setTransferAmount(e.target.value)}
+                  className={`w-full p-3 rounded-2xl text-sm font-bold border outline-none transition-colors ${
+                    darkMode ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500' : 'bg-slate-50 border-slate-200 focus:border-blue-500'
+                  }`}
+                  placeholder="0.00"
+                  required
+                  min="0.01"
+                  step="any"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!transferSenderId || !transferReceiverId || transferSenderId === transferReceiverId || !transferAmount}
+                className="w-full h-12 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all-300 disabled:opacity-50 disabled:active:scale-100"
+              >
+                <Check className="w-4 h-4" /> Request Transfer
               </button>
             </form>
           </motion.div>

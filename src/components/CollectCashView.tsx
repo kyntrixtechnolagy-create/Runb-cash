@@ -21,8 +21,8 @@ export default function CollectCashView({
   darkMode
 }: CollectCashViewProps) {
   const [amount, setAmount] = useState('');
-  const [sitesList, setSitesList] = useState(['Site A', 'Site B', 'Downtown Project']);
-  const [siteName, setSiteName] = useState('Site A');
+  const [sitesList, setSitesList] = useState(['Common', 'Site A', 'Site B', 'Downtown Project']);
+  const [siteName, setSiteName] = useState('Common');
   const [newSiteName, setNewSiteName] = useState('');
   const [showNewSiteForm, setShowNewSiteForm] = useState(false);
   const [note, setNote] = useState('');

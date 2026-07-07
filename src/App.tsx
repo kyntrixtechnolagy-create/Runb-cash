@@ -41,6 +41,7 @@ import ReturnCashView from './components/ReturnCashView';
 import ReportsView from './components/ReportsView';
 import ProfileView from './components/ProfileView';
 import CollectCashView from './components/CollectCashView';
+import RequestCashView from './components/RequestCashView';
 import Toast, { ToastMessage } from './components/Toast';
 
 export default function App() {
@@ -51,6 +52,7 @@ export default function App() {
   const [supervisors, setSupervisors] = useState<UserType[]>([]);
   const [balances, setBalances] = useState<SupervisorBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [reportStaffFilter, setReportStaffFilter] = useState<string | null>(null);
 
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -241,6 +243,143 @@ export default function App() {
       showToast(`Sent Rs. ${amount.toLocaleString()} to ${targetSup.name}`, 'SUCCESS');
     } catch (err: any) {
       showToast(err.message || 'Error saving allocation to DB', 'ERROR');
+    }
+  };
+
+  // Owner action: Initiate Staff to Staff Transfer
+  const handleCreateTransfer = async (senderId: string, receiverId: string, amount: number) => {
+    const targetSender = supervisors.find(s => s.id === senderId);
+    const targetReceiver = supervisors.find(s => s.id === receiverId);
+    if (!targetSender || !targetReceiver) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const transferState = {
+      receiverId,
+      receiverName: targetReceiver.name,
+      senderApproved: false,
+      receiverApproved: false
+    };
+
+    try {
+      const { data: txData, error: txError } = await supabase.from('transactions').insert([
+        {
+          amount,
+          type: 'EXPENSE',
+          category: 'STAFF_TRANSFER',
+          description: JSON.stringify(transferState),
+          date: today,
+          supervisorId: senderId,
+          supervisorName: targetSender.name,
+          status: 'PENDING'
+        }
+      ]).select().single();
+
+      if (txError) throw txError;
+      
+      const newTx: Transaction = { ...(txData as Transaction) };
+      updateDB(supervisors, balances, [newTx, ...transactions]);
+      showToast(`Initiated transfer of Rs. ${amount.toLocaleString()} from ${targetSender.name} to ${targetReceiver.name}`, 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error initiating transfer', 'ERROR');
+    }
+  };
+
+  const handleApproveTransfer = async (txId: string, userId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.category !== 'STAFF_TRANSFER' || tx.status !== 'PENDING') return;
+
+    try {
+      const transferState = JSON.parse(tx.description);
+      const isSender = userId === tx.supervisorId;
+      const isReceiver = userId === transferState.receiverId;
+
+      if (isSender) transferState.senderApproved = true;
+      if (isReceiver) transferState.receiverApproved = true;
+
+      const bothApproved = transferState.senderApproved && transferState.receiverApproved;
+      
+      if (bothApproved) {
+        const senderBal = balances.find(b => b.supervisorId === tx.supervisorId);
+        const receiverBal = balances.find(b => b.supervisorId === transferState.receiverId);
+        
+        const newSenderRemaining = (senderBal?.remainingCash ?? 0) - tx.amount;
+        const newSenderSpent = (senderBal?.spentCash ?? 0) + tx.amount;
+        const newReceiverRemaining = (receiverBal?.remainingCash ?? 0) + tx.amount;
+        const newReceiverAllocated = (receiverBal?.allocatedCash ?? 0) + tx.amount;
+
+        const { error: txErr1 } = await supabase.from('transactions').update({
+          description: JSON.stringify(transferState),
+          status: 'APPROVED'
+        }).eq('id', tx.id);
+        if (txErr1) throw txErr1;
+
+        const today = new Date().toISOString().split('T')[0];
+        const { data: rxTxData, error: txErr2 } = await supabase.from('transactions').insert([{
+          amount: tx.amount,
+          type: 'INCOME',
+          category: 'STAFF_TRANSFER_IN',
+          description: `Transfer from ${tx.supervisorName}`,
+          date: today,
+          supervisorId: transferState.receiverId,
+          supervisorName: transferState.receiverName,
+          status: 'APPROVED'
+        }]).select().single();
+        if (txErr2) throw txErr2;
+
+        await supabase.from('supervisor_balances').upsert([
+          {
+            supervisorId: tx.supervisorId,
+            supervisorName: tx.supervisorName,
+            allocatedCash: senderBal?.allocatedCash ?? 0,
+            spentCash: newSenderSpent,
+            remainingCash: newSenderRemaining
+          },
+          {
+            supervisorId: transferState.receiverId,
+            supervisorName: transferState.receiverName,
+            allocatedCash: newReceiverAllocated,
+            spentCash: receiverBal?.spentCash ?? 0,
+            remainingCash: newReceiverRemaining
+          }
+        ], { onConflict: 'supervisorId' });
+
+        const updatedTxs = transactions.map(t => t.id === tx.id ? { ...t, description: JSON.stringify(transferState), status: 'APPROVED' as any } : t);
+        const updatedBalances = balances.map(b => {
+          if (b.supervisorId === tx.supervisorId) return { ...b, spentCash: newSenderSpent, remainingCash: newSenderRemaining };
+          if (b.supervisorId === transferState.receiverId) return { ...b, allocatedCash: newReceiverAllocated, remainingCash: newReceiverRemaining };
+          return b;
+        });
+
+        updateDB(supervisors, updatedBalances, [rxTxData as Transaction, ...updatedTxs]);
+        showToast('Transfer completed successfully!', 'SUCCESS');
+      } else {
+        const { error: txErr1 } = await supabase.from('transactions').update({
+          description: JSON.stringify(transferState)
+        }).eq('id', tx.id);
+        if (txErr1) throw txErr1;
+
+        const updatedTxs = transactions.map(t => t.id === tx.id ? { ...t, description: JSON.stringify(transferState) } : t);
+        updateDB(supervisors, balances, updatedTxs);
+        showToast('You approved the transfer. Waiting for the other party.', 'SUCCESS');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Error processing approval', 'ERROR');
+    }
+  };
+
+  const handleDeclineTransfer = async (txId: string) => {
+    const tx = transactions.find(t => t.id === txId);
+    if (!tx || tx.category !== 'STAFF_TRANSFER') return;
+
+    try {
+      const { error: txErr } = await supabase.from('transactions').update({ status: 'REJECTED' }).eq('id', txId);
+      if (txErr) throw txErr;
+
+      const updatedTxs = transactions.map(t => t.id === txId ? { ...t, status: 'REJECTED' as any } : t);
+      updateDB(supervisors, balances, updatedTxs);
+      showToast('Transfer declined.', 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error declining transfer', 'ERROR');
     }
   };
 
@@ -569,10 +708,39 @@ export default function App() {
 
       const newTx = txData as Transaction;
       updateDB(supervisors, balances, [newTx, ...transactions]);
-      showToast('Cash collection submitted for owner approval!', 'SUCCESS');
+      showToast('Cash collection submitted for approval.', 'SUCCESS');
       setActiveScreen('SUPERVISOR_DASHBOARD');
     } catch (err: any) {
-      showToast(err.message || 'Failed to submit cash collection', 'ERROR');
+      showToast(err.message || 'Error saving collection', 'ERROR');
+    }
+  };
+
+  const handleRequestCash = async (amount: number, reason: string) => {
+    if (!currentUser) return;
+    const today = new Date().toISOString().split('T')[0];
+
+    try {
+      const { data: txData, error } = await supabase.from('transactions').insert([
+        {
+          amount,
+          type: 'INCOME',
+          category: 'CASH_REQUEST',
+          description: reason,
+          date: today,
+          "supervisorId": currentUser.id,
+          "supervisorName": currentUser.name,
+          status: 'PENDING'
+        }
+      ]).select().single();
+
+      if (error) { console.error('Request cash error:', error); throw error; }
+
+      const finalTx = txData as Transaction;
+      updateDB(supervisors, balances, [finalTx, ...transactions]);
+      showToast('Money request sent to owner.', 'SUCCESS');
+      setActiveScreen('SUPERVISOR_DASHBOARD');
+    } catch (err: any) {
+      showToast(err.message || 'Error saving request', 'ERROR');
     }
   };
 
@@ -762,6 +930,12 @@ export default function App() {
                           onReviewTransaction={handleReviewTransaction}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
                           onEditStaff={handleEditStaff}
+                          onCreateTransfer={handleCreateTransfer}
+                          onViewStaffAudit={(staffId) => {
+                            setReportStaffFilter(staffId);
+                            setActiveScreen('REPORTS');
+                            setActiveTab('reports');
+                          }}
                         />
                       )}
 
@@ -775,17 +949,20 @@ export default function App() {
                           onAddExpenseClick={() => setActiveScreen('ADD_EXPENSE')}
                           onReturnCashClick={() => setActiveScreen('RETURN_CASH')}
                           onCollectCashClick={() => setActiveScreen('COLLECT_CASH')}
+                          onRequestCashClick={() => setActiveScreen('REQUEST_CASH')}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
                           onEditExpense={(tx) => {
                             setSelectedTxDetails(tx);
                             setActiveScreen('EDIT_EXPENSE');
                           }}
+                          onApproveTransfer={handleApproveTransfer}
+                          onDeclineTransfer={handleDeclineTransfer}
                         />
                       )}
 
                       {activeScreen === 'TRANSACTIONS' && (
                         <TransactionsView
-                          transactions={transactions}
+                          transactions={currentUser.role === 'OWNER' ? transactions : transactions.filter(t => t.supervisorId === currentUser.id)}
                           userRole={currentUser.role}
                           darkMode={darkMode}
                           onReviewTransaction={handleReviewTransaction}
@@ -824,6 +1001,14 @@ export default function App() {
                         />
                       )}
 
+                      {activeScreen === 'REQUEST_CASH' && (
+                        <RequestCashView
+                          onRequestCash={handleRequestCash}
+                          onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
+                          darkMode={darkMode}
+                        />
+                      )}
+
                       {activeScreen === 'EDIT_EXPENSE' && selectedTxDetails && (
                         <EditExpenseView
                           transaction={selectedTxDetails}
@@ -839,6 +1024,7 @@ export default function App() {
 
                       {activeScreen === 'REPORTS' && (
                         <ReportsView
+                          key={reportStaffFilter || 'reports-all'}
                           transactions={transactions}
                           supervisors={supervisors}
                           userRole={currentUser.role}
@@ -846,6 +1032,8 @@ export default function App() {
                           darkMode={darkMode}
                           onMarkMistake={handleMarkMistake}
                           onApproveDaily={handleApproveDaily}
+                          initialSupFilter={reportStaffFilter || undefined}
+                          initialReportType={reportStaffFilter ? 'SUPERVISOR' : undefined}
                         />
                       )}
 

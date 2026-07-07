@@ -61,7 +61,8 @@ export type ActiveScreen =
   | 'RETURN_CASH'
   | 'REPORTS'
   | 'PROFILE'
-  | 'COLLECT_CASH';
+  | 'COLLECT_CASH'
+  | 'REQUEST_CASH';
 
 export interface CategoryBudget {
   name: string;

@@ -240,14 +240,33 @@ export default function TransactionsView({
                           <span className="text-slate-400 font-normal">by {tx.supervisorName}</span>
                         )}
                       </div>
-                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5 line-clamp-1">{tx.description}</div>
+                      <div className="text-xs font-bold text-slate-800 dark:text-slate-100 mt-0.5 line-clamp-1">
+                        {tx.category === 'STAFF_TRANSFER' ? (() => {
+                          try {
+                            const state = JSON.parse(tx.description);
+                            return isIncome ? `Received from ${tx.supervisorName}` : `Transfer to ${state.receiverName}`;
+                          } catch { return tx.description; }
+                        })() : tx.category === 'Allocation' ? (() => {
+                          try {
+                            const d = JSON.parse(tx.description);
+                            if (isOwner) {
+                              return (
+                                <span>
+                                  {d.note} <span className="text-[10px] text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded ml-1 font-normal">{d.paymentMethod === 'ONLINE' ? `Online: ${d.bankName}` : 'Cash'}</span>
+                                </span>
+                              );
+                            }
+                            return d.note;
+                          } catch { return tx.description; }
+                        })() : tx.description}
+                      </div>
                       <div className="text-[10px] text-slate-400 mt-0.5 font-mono">{tx.date}</div>
                     </div>
                   </div>
 
                   <div className="text-right flex flex-col items-end gap-1">
                     <span className={`text-xs font-mono font-bold ${
-                      isIncome ? 'text-emerald-500' : isReturn ? 'text-purple-500' : 'text-slate-800 dark:text-slate-200'
+                      isIncome ? 'text-emerald-500' : isReturn ? 'text-purple-500' : 'text-red-500'
                     }`}>
                       {isIncome ? '+' : isReturn ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                     </span>
@@ -265,9 +284,22 @@ export default function TransactionsView({
                         </span>
                       )}
                       {tx.status === 'REJECTED' && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[8px] font-bold">
-                          <XCircle className="w-2 h-2" /> Rejected
-                        </span>
+                        <div className="flex flex-col items-end gap-1 mt-1">
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[8px] font-bold">
+                            <XCircle className="w-2 h-2" /> Rejected
+                          </span>
+                          {!isOwner && onEditExpense && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditExpense(tx);
+                              }}
+                              className="text-[8px] font-bold px-2 py-1 bg-red-500 text-white rounded active:scale-95 cursor-pointer"
+                            >
+                              Edit & Resubmit
+                            </button>
+                          )}
+                        </div>
                       )}
                       {tx.status === 'NEEDS_CORRECTION' && (
                         <div className="flex flex-col items-end gap-1 mt-1">
@@ -327,7 +359,7 @@ export default function TransactionsView({
                     Amount Value
                   </div>
                   <div className={`text-2xl font-bold font-mono mt-0.5 ${
-                    selectedTxDetails.type === 'INCOME' ? 'text-emerald-500' : selectedTxDetails.type === 'RETURN' ? 'text-purple-500' : 'text-slate-900 dark:text-slate-100'
+                    selectedTxDetails.type === 'INCOME' ? 'text-emerald-500' : selectedTxDetails.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'
                   }`}>
                     {selectedTxDetails.type === 'INCOME' ? '+' : selectedTxDetails.type === 'RETURN' ? '+' : '-'}Rs. {selectedTxDetails.amount.toLocaleString()}
                   </div>
@@ -386,9 +418,18 @@ export default function TransactionsView({
 
               {/* Description */}
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
-                <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">{selectedTxDetails.type === 'RETURN' ? 'Return Note' : 'Expense Justification'}</span>
+                <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">
+                  {selectedTxDetails.type === 'RETURN' ? 'Return Note' : selectedTxDetails.category === 'STAFF_TRANSFER' ? 'Transfer Details' : 'Expense Justification'}
+                </span>
                 <p className="font-medium text-xs mt-1 text-slate-700 dark:text-slate-200">
-                  {selectedTxDetails.description}
+                  {selectedTxDetails.category === 'STAFF_TRANSFER' ? (() => {
+                    try {
+                      const state = JSON.parse(selectedTxDetails.description);
+                      return selectedTxDetails.type === 'INCOME' 
+                        ? `Received from ${selectedTxDetails.supervisorName}` 
+                        : `Transfer to ${state.receiverName}`;
+                    } catch { return selectedTxDetails.description; }
+                  })() : selectedTxDetails.description}
                 </p>
               </div>
 

@@ -1,0 +1,160 @@
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
+import {
+  ChevronLeft,
+  Check,
+  AlertCircle,
+  HandCoins,
+  Coins
+} from 'lucide-react';
+
+interface RequestCashViewProps {
+  onRequestCash: (amount: number, reason: string) => void;
+  onCancel: () => void;
+  darkMode: boolean;
+}
+
+export default function RequestCashView({
+  onRequestCash,
+  onCancel,
+  darkMode
+}: RequestCashViewProps) {
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const amountPresets = [500, 1000, 2000, 5000, 10000];
+
+  const handlePresetClick = (val: number) => {
+    setAmount(val.toString());
+    setErrorMsg('');
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedAmount = Number(amount);
+
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      setErrorMsg('Please enter a valid amount.');
+      return;
+    }
+    if (!reason.trim()) {
+      setErrorMsg('Please enter a reason for the cash request.');
+      return;
+    }
+
+    onRequestCash(parsedAmount, reason.trim());
+  };
+
+  return (
+    <div className={`absolute inset-0 flex flex-col justify-between pb-24 overflow-y-auto no-scrollbar transition-colors duration-300 ${
+      darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      {/* Dynamic Screen Header */}
+      <div className={`p-4 flex items-center justify-between border-b sticky top-0 z-20 backdrop-blur-md ${
+        darkMode ? 'bg-slate-950/80 border-slate-900' : 'bg-white/80 border-slate-100'
+      }`}>
+        <button
+          onClick={onCancel}
+          className="flex items-center gap-1 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+        >
+          <ChevronLeft className="w-4.5 h-4.5" />
+          <span>Go Back</span>
+        </button>
+        <span className="text-sm font-bold font-display flex items-center gap-1">
+          <Coins className="w-4 h-4 text-blue-500" />
+          Request Cash
+        </span>
+        <div className="w-14" /> {/* Spacer */}
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-4 flex-1 space-y-4">
+        {errorMsg && (
+          <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-500 text-xs flex items-center gap-2 font-bold">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+          <p className="text-xs text-blue-600 dark:text-blue-400 font-bold">
+            Request cash from the owner. Once approved, the funds will be added to your available balance.
+          </p>
+        </div>
+
+        {/* Large Amount Field */}
+        <div className={`p-5 rounded-3xl border text-center transition-all-300 ${
+          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">How much do you need?</span>
+          
+          <div className="relative mt-2 max-w-xs mx-auto flex items-center justify-center">
+            <span className="text-2xl font-bold text-blue-500 mr-1.5">Rs.</span>
+            <input
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setErrorMsg('');
+              }}
+              className="w-48 text-left text-4xl font-display font-bold bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 pb-2 focus:border-blue-500 outline-none text-blue-500 font-sans"
+              min="0.01"
+              step="any"
+              required
+              autoFocus
+            />
+          </div>
+
+          {/* Quick Preset Chips */}
+          <div className="flex flex-wrap items-center justify-center gap-1.5 mt-4">
+            {amountPresets.map((val) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => handlePresetClick(val)}
+                className={`py-1 px-3 rounded-full text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer ${
+                  amount === val.toString()
+                    ? 'bg-blue-500 text-white shadow-md shadow-blue-500/25'
+                    : darkMode
+                    ? 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white'
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}
+              >
+                Rs. {val}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Note Input */}
+        <div className="space-y-1">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wide block">Reason for request:</span>
+          <textarea
+            placeholder="e.g. Need money for fuel, material purchase..."
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value);
+              setErrorMsg('');
+            }}
+            rows={2.5}
+            className={`w-full p-3.5 text-xs rounded-2xl border outline-none transition-all-300 resize-none font-medium ${
+              darkMode
+                ? 'bg-slate-900 border-slate-800 focus:border-blue-500 text-white'
+                : 'bg-white border-slate-200 focus:border-blue-500 text-slate-800'
+            }`}
+          />
+        </div>
+
+        {/* Large Submit Button */}
+        <button
+          type="submit"
+          className="w-full relative h-12 rounded-2xl bg-gradient-to-r from-blue-500 to-teal-500 font-bold text-sm text-white hover:opacity-95 focus:outline-none flex items-center justify-center shadow-lg shadow-blue-500/20 active:scale-[0.98] transition-all duration-150 mt-6 cursor-pointer"
+        >
+          <Check className="w-4.5 h-4.5 mr-1" />
+          <span>Send Request to Owner</span>
+        </button>
+      </form>
+    </div>
+  );
+}
