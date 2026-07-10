@@ -4,7 +4,7 @@
  */
 
 import { motion } from 'motion/react';
-import { Home, Receipt, BarChart3, User, Plus } from 'lucide-react';
+import { Home, IndianRupee, BarChart3, User, Plus } from 'lucide-react';
 import { ActiveScreen, UserRole } from '../types';
 
 interface BottomNavProps {
@@ -34,7 +34,7 @@ export default function BottomNav({
     {
       id: 'TRANSACTIONS' as const,
       label: 'Activity',
-      icon: Receipt,
+      icon: IndianRupee,
       screen: 'TRANSACTIONS' as const
     },
     ...(isOwner

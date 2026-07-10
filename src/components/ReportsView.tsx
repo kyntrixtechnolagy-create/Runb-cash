@@ -158,7 +158,7 @@ export default function ReportsView({
 
   // Real Excel Exporter
   const handleExportExcel = () => {
-    const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Staff Name', 'Amount ($)', 'Audit Status', 'Justification'];
+    const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Staff Name', 'Amount (Rs)', 'Audit Status', 'Justification'];
     const rows = reportTransactions.map((t) => [
       t.id,
       t.date,
@@ -196,12 +196,12 @@ export default function ReportsView({
       t.type,
       t.category,
       t.supervisorName,
-      `$${t.amount}`,
+      `Rs. ${t.amount}`,
       t.status
     ]);
 
     const totalBalance = totalAllocated - totalSpent;
-    data.push(['', '', '', '', 'TOTAL BALANCE:', `$${totalBalance}`, '']);
+    data.push(['', '', '', '', 'TOTAL BALANCE:', `Rs. ${totalBalance}`, '']);
 
     autoTable(doc, {
       startY: 35,
@@ -413,7 +413,7 @@ export default function ReportsView({
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
         }`}>
           <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Filtered Expenditures</span>
-          <div className="text-xl font-bold font-mono text-red-500 mt-1">${totalSpent.toLocaleString()}</div>
+          <div className="text-xl font-bold font-mono text-red-500 mt-1">Rs. {totalSpent.toLocaleString()}</div>
           <span className="text-[9px] text-slate-400 mt-1 block">Approved cash outflows</span>
         </div>
 
@@ -421,7 +421,7 @@ export default function ReportsView({
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
         }`}>
           <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Average Ticket</span>
-          <div className="text-xl font-bold font-mono text-slate-800 dark:text-slate-100 mt-1">${averageTicket.toLocaleString()}</div>
+          <div className="text-xl font-bold font-mono text-slate-800 dark:text-slate-100 mt-1">Rs. {averageTicket.toLocaleString()}</div>
           <span className="text-[9px] text-slate-400 mt-1 block">Per recorded expense item</span>
         </div>
       </div>
@@ -446,7 +446,7 @@ export default function ReportsView({
                       <span>{cat.name}</span>
                     </span>
                     <span className="font-mono text-slate-500">
-                      ${cat.amount.toLocaleString()} ({pct}%)
+                      Rs. {cat.amount.toLocaleString()} ({pct}%)
                     </span>
                   </div>
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
@@ -545,7 +545,7 @@ export default function ReportsView({
                   <span className={`font-bold font-mono text-xs block ${
                     t.type === 'INCOME' ? 'text-emerald-500' : 'text-red-500'
                   }`}>
-                    {t.type === 'INCOME' ? '+' : '-'}${t.amount}
+                    {t.type === 'INCOME' ? '+' : '-'}Rs. {t.amount}
                   </span>
                   <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{t.status}</span>
                 </div>

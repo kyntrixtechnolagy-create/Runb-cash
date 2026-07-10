@@ -28,6 +28,7 @@ interface TransactionsViewProps {
   userRole: UserRole;
   darkMode: boolean;
   onReviewTransaction?: (id: string, status: 'APPROVED' | 'REJECTED') => void;
+  onEditAllocation?: (id: string, newAmount: number) => void;
   selectedTxDetails?: Transaction | null;
   setSelectedTxDetails: (tx: Transaction | null) => void;
   onEditExpense?: (tx: Transaction) => void;
@@ -38,6 +39,7 @@ export default function TransactionsView({
   userRole,
   darkMode,
   onReviewTransaction,
+  onEditAllocation,
   selectedTxDetails,
   setSelectedTxDetails,
   onEditExpense
@@ -46,7 +48,7 @@ export default function TransactionsView({
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedType, setSelectedType] = useState('ALL'); // ALL, INCOME, EXPENSE
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
   const isOwner = userRole === 'OWNER';
 
@@ -419,7 +421,7 @@ export default function TransactionsView({
               {/* Description */}
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
                 <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">
-                  {selectedTxDetails.type === 'RETURN' ? 'Return Note' : selectedTxDetails.category === 'STAFF_TRANSFER' ? 'Transfer Details' : 'Expense Justification'}
+                  {selectedTxDetails.type === 'RETURN' ? 'Return Note' : selectedTxDetails.category === 'STAFF_TRANSFER' ? 'Transfer Details' : selectedTxDetails.category === 'Allocation' ? 'Allocation Details' : 'Expense Justification'}
                 </span>
                 <p className="font-medium text-xs mt-1 text-slate-700 dark:text-slate-200">
                   {selectedTxDetails.category === 'STAFF_TRANSFER' ? (() => {
@@ -428,6 +430,19 @@ export default function TransactionsView({
                       return selectedTxDetails.type === 'INCOME' 
                         ? `Received from ${selectedTxDetails.supervisorName}` 
                         : `Transfer to ${state.receiverName}`;
+                    } catch { return selectedTxDetails.description; }
+                  })() : selectedTxDetails.category === 'Allocation' ? (() => {
+                    try {
+                      const d = JSON.parse(selectedTxDetails.description);
+                      return (
+                        <span>
+                          {d.note}
+                          <br />
+                          <span className="text-[10px] text-blue-500 bg-blue-500/10 px-1 py-0.5 rounded mt-1 inline-block font-normal">
+                            {d.paymentMethod === 'ONLINE' ? `Online: ${d.bankName}` : 'Cash'}
+                          </span>
+                        </span>
+                      );
                     } catch { return selectedTxDetails.description; }
                   })() : selectedTxDetails.description}
                 </p>
@@ -497,6 +512,33 @@ export default function TransactionsView({
                   >
                     <XCircle className="w-4 h-4" />
                     <span>Decline Claims</span>
+                  </button>
+                </div>
+              )}
+
+              {isOwner && selectedTxDetails.status === 'NEEDS_CORRECTION' && selectedTxDetails.category === 'Allocation' && (
+                <div className="flex items-center gap-2 pt-2">
+                  <input 
+                    type="number" 
+                    placeholder="New Amount"
+                    id={`edit-alloc-modal-${selectedTxDetails.id}`}
+                    defaultValue={selectedTxDetails.amount}
+                    className={`flex-1 p-2.5 text-xs rounded-xl border outline-none font-bold ${
+                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                    }`}
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById(`edit-alloc-modal-${selectedTxDetails.id}`) as HTMLInputElement;
+                      const newAmount = Number(input.value);
+                      if (newAmount > 0 && onEditAllocation) {
+                        onEditAllocation(selectedTxDetails.id, newAmount);
+                        setSelectedTxDetails(null);
+                      }
+                    }}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl active:scale-95 transition-transform shadow-md shadow-blue-500/20"
+                  >
+                    Resend
                   </button>
                 </div>
               )}

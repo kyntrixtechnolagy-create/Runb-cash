@@ -54,7 +54,14 @@ export default function App() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reportStaffFilter, setReportStaffFilter] = useState<string | null>(null);
 
-  const [darkMode, setDarkMode] = useState<boolean>(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const savedTheme = localStorage.getItem('theme-preference');
+    return savedTheme === 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme-preference', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedTxDetails, setSelectedTxDetails] = useState<Transaction | null>(null);
@@ -189,14 +196,9 @@ export default function App() {
     if (!targetSup) return;
 
     const today = new Date().toISOString().split('T')[0];
-    const existing = balances.find((b) => b.supervisorId === supId);
-    const currentAllocated = existing?.allocatedCash ?? 0;
-    const currentRemaining = existing?.remainingCash ?? 0;
-    const newAllocated = currentAllocated + amount;
-    const newRemaining = currentRemaining + amount;
 
     try {
-      // 1. Insert transaction
+      // 1. Insert transaction as PENDING
       const { data: txData, error: txError } = await supabase.from('transactions').insert([
         {
           amount,
@@ -206,43 +208,102 @@ export default function App() {
           date: today,
           "supervisorId": supId,
           "supervisorName": targetSup.name,
-          status: 'APPROVED'
+          status: 'PENDING'
         }
       ]).select().single();
       if (txError) { console.error('TX insert error:', txError); throw txError; }
 
-      // 2. Upsert balance — creates row if it doesn't exist yet
+      // 2. Update local state
+      const newTx: Transaction = { ...(txData as Transaction) };
+      updateDB(supervisors, balances, [newTx, ...transactions]);
+      showToast(`Sent Rs. ${amount.toLocaleString()} to ${targetSup.name}. Waiting for staff to accept.`, 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error saving allocation to DB', 'ERROR');
+    }
+  };
+
+  // Staff action: Approve allocation from owner
+  const handleApproveAllocation = async (txId: string) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx || targetTx.category !== 'Allocation' || targetTx.status !== 'PENDING') return;
+
+    try {
+      const existing = balances.find((b) => b.supervisorId === targetTx.supervisorId);
+      const currentAllocated = existing?.allocatedCash ?? 0;
+      const currentRemaining = existing?.remainingCash ?? 0;
+      const newAllocated = currentAllocated + targetTx.amount;
+      const newRemaining = currentRemaining + targetTx.amount;
+
+      // 1. Update transaction
+      const { error: txError } = await supabase.from('transactions').update({ status: 'APPROVED' }).eq('id', txId);
+      if (txError) throw txError;
+
+      // 2. Upsert balance
       const { error: balError } = await supabase.from('supervisor_balances').upsert(
         {
-          "supervisorId": supId,
-          "supervisorName": targetSup.name,
+          "supervisorId": targetTx.supervisorId,
+          "supervisorName": targetTx.supervisorName,
           "allocatedCash": newAllocated,
           "spentCash": existing?.spentCash ?? 0,
           "remainingCash": newRemaining
         },
         { onConflict: 'supervisorId' }
       );
-      if (balError) { console.error('Balance upsert error:', balError); throw balError; }
+      if (balError) throw balError;
 
       // 3. Update local state
-      const newTx: Transaction = { ...(txData as Transaction) };
       let updatedBalances: SupervisorBalance[];
       if (existing) {
         updatedBalances = balances.map((b) =>
-          b.supervisorId === supId ? { ...b, allocatedCash: newAllocated, remainingCash: newRemaining } : b
+          b.supervisorId === targetTx.supervisorId ? { ...b, allocatedCash: newAllocated, remainingCash: newRemaining } : b
         );
       } else {
-        const newBal: SupervisorBalance = {
-          supervisorId: supId, supervisorName: targetSup.name,
+        updatedBalances = [...balances, {
+          supervisorId: targetTx.supervisorId, supervisorName: targetTx.supervisorName,
           allocatedCash: newAllocated, spentCash: 0, remainingCash: newRemaining
-        };
-        updatedBalances = [...balances, newBal];
+        }];
       }
 
-      updateDB(supervisors, updatedBalances, [newTx, ...transactions]);
-      showToast(`Sent Rs. ${amount.toLocaleString()} to ${targetSup.name}`, 'SUCCESS');
+      updateDB(supervisors, updatedBalances, transactions.map((t) => t.id === txId ? { ...t, status: 'APPROVED' } : t));
+      showToast('Cash allocation accepted and added to your balance!', 'SUCCESS');
     } catch (err: any) {
-      showToast(err.message || 'Error saving allocation to DB', 'ERROR');
+      showToast(err.message || 'Error approving allocation', 'ERROR');
+    }
+  };
+
+  // Staff action: Re-request allocation
+  const handleRerequestAllocation = async (txId: string, note: string) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx || targetTx.category !== 'Allocation' || targetTx.status !== 'PENDING') return;
+
+    try {
+      const { error: txError } = await supabase.from('transactions')
+        .update({ status: 'NEEDS_CORRECTION', mistakeNote: note })
+        .eq('id', txId);
+      if (txError) throw txError;
+
+      updateDB(supervisors, balances, transactions.map((t) => t.id === txId ? { ...t, status: 'NEEDS_CORRECTION', mistakeNote: note } : t));
+      showToast('Re-requested the correct amount from owner.', 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error re-requesting allocation', 'ERROR');
+    }
+  };
+
+  // Owner action: Edit & Resend Allocation
+  const handleEditAllocation = async (txId: string, newAmount: number) => {
+    const targetTx = transactions.find((t) => t.id === txId);
+    if (!targetTx || targetTx.category !== 'Allocation' || targetTx.status !== 'NEEDS_CORRECTION') return;
+
+    try {
+      const { error: txError } = await supabase.from('transactions')
+        .update({ amount: newAmount, status: 'PENDING', mistakeNote: null })
+        .eq('id', txId);
+      if (txError) throw txError;
+
+      updateDB(supervisors, balances, transactions.map((t) => t.id === txId ? { ...t, amount: newAmount, status: 'PENDING', mistakeNote: undefined } : t));
+      showToast('Corrected amount sent to staff for approval.', 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error updating allocation', 'ERROR');
     }
   };
 
@@ -442,6 +503,22 @@ export default function App() {
       showToast(`${name}'s details updated!`, 'SUCCESS');
     } catch (err: any) {
       showToast(err.message || 'Error updating staff', 'ERROR');
+    }
+  };
+
+  // Owner action: Remove staff (soft delete)
+  const handleRemoveStaff = async (userId: string) => {
+    try {
+      const { error } = await supabase.from('users').update({ isActive: false }).eq('id', userId);
+      if (error) { console.error('Remove staff error:', error); throw error; }
+
+      const updatedSups = supervisors.map((s) =>
+        s.id === userId ? { ...s, isActive: false } : s
+      );
+      setSupervisors(updatedSups as UserType[]);
+      showToast('Staff member removed successfully.', 'SUCCESS');
+    } catch (err: any) {
+      showToast(err.message || 'Error removing staff', 'ERROR');
     }
   };
 
@@ -921,7 +998,7 @@ export default function App() {
                       {activeScreen === 'OWNER_DASHBOARD' && (
                         <OwnerDashboardView
                           user={currentUser}
-                          supervisors={supervisors}
+                          supervisors={supervisors.filter((s) => s.isActive !== false)}
                           balances={balances}
                           transactions={transactions}
                           darkMode={darkMode}
@@ -930,11 +1007,12 @@ export default function App() {
                           onReviewTransaction={handleReviewTransaction}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
                           onEditStaff={handleEditStaff}
+                          onRemoveStaff={handleRemoveStaff}
                           onCreateTransfer={handleCreateTransfer}
+                          onEditAllocation={handleEditAllocation}
                           onViewStaffAudit={(staffId) => {
                             setReportStaffFilter(staffId);
                             setActiveScreen('REPORTS');
-                            setActiveTab('reports');
                           }}
                         />
                       )}
@@ -957,6 +1035,8 @@ export default function App() {
                           }}
                           onApproveTransfer={handleApproveTransfer}
                           onDeclineTransfer={handleDeclineTransfer}
+                          onApproveAllocation={handleApproveAllocation}
+                          onRerequestAllocation={handleRerequestAllocation}
                         />
                       )}
 
@@ -966,6 +1046,7 @@ export default function App() {
                           userRole={currentUser.role}
                           darkMode={darkMode}
                           onReviewTransaction={handleReviewTransaction}
+                          onEditAllocation={handleEditAllocation}
                           selectedTxDetails={selectedTxDetails}
                           setSelectedTxDetails={setSelectedTxDetails}
                           onEditExpense={(tx) => {

@@ -17,12 +17,12 @@ import {
   X,
   Clock,
   ExternalLink,
-  DollarSign,
   Edit2,
   Phone,
   Mail,
   Briefcase,
-  Save
+  Save,
+  Trash2
 } from 'lucide-react';
 import { User, SupervisorBalance, Transaction } from '../types';
 
@@ -37,6 +37,8 @@ interface OwnerDashboardViewProps {
   onReviewTransaction: (id: string, status: 'APPROVED' | 'REJECTED') => void;
   onViewTransactionDetails: (tx: Transaction) => void;
   onEditStaff: (id: string, name: string, designation: string, phone: string, spendLimit: number) => void;
+  onRemoveStaff?: (id: string) => void;
+  onEditAllocation?: (txId: string, newAmount: number) => void;
   onCreateTransfer?: (senderId: string, receiverId: string, amount: number) => void;
   onViewStaffAudit?: (staffId: string) => void;
 }
@@ -52,12 +54,17 @@ export default function OwnerDashboardView({
   onReviewTransaction,
   onViewTransactionDetails,
   onEditStaff,
+  onRemoveStaff,
+  onEditAllocation,
   onCreateTransfer,
   onViewStaffAudit
 }: OwnerDashboardViewProps) {
   const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [showAddSupModal, setShowAddSupModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
+  
+  // Navigation State to avoid scrolling
+  const [currentTab, setCurrentTab] = useState<'HOME' | 'STAFF' | 'STAFF_DETAILS' | 'PENDING'>('HOME');
 
   // Form states for Allocating Cash
   const [allocSupId, setAllocSupId] = useState('');
@@ -65,6 +72,9 @@ export default function OwnerDashboardView({
   const [allocNotes, setAllocNotes] = useState('');
   const [allocPaymentMethod, setAllocPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH');
   const [allocBankName, setAllocBankName] = useState('');
+  const [bankList, setBankList] = useState(['HDFC']);
+  const [showNewBankForm, setShowNewBankForm] = useState(false);
+  const [newBankName, setNewBankName] = useState('');
 
   // Form states for Transferring Cash
   const [transferSenderId, setTransferSenderId] = useState('');
@@ -124,7 +134,12 @@ export default function OwnerDashboardView({
   const liveTotalLiquidValue = remainingTreasury + supervisorRemaining;
 
   // Filter pending approvals
-  const ownerPendingTransactions = transactions.filter((t) => t.status === 'PENDING' && t.category !== 'STAFF_TRANSFER');
+  const ownerPendingTransactions = transactions.filter((t) => 
+    (
+      (t.status === 'PENDING' && t.category !== 'Allocation' && t.category !== 'STAFF_TRANSFER') ||
+      (t.status === 'NEEDS_CORRECTION' && t.category === 'Allocation')
+    )
+  );
   const staffTransferPending = transactions.filter((t) => t.status === 'PENDING' && t.category === 'STAFF_TRANSFER');
 
   const handleAllocateSubmit = (e: React.FormEvent) => {
@@ -188,40 +203,43 @@ export default function OwnerDashboardView({
   const maxVal = 12000;
 
   return (
-    <div className="flex-1 overflow-y-auto no-scrollbar pb-24 p-4 space-y-5">
+    <div className="flex-1 overflow-hidden p-3 flex flex-col relative h-full">
+      {/* ══ HOME TAB ══ */}
+      {currentTab === 'HOME' && (
+        <div className="flex-1 flex flex-col space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Welcome Card & Real-time Balance */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        onClick={() => document.getElementById('all-staff-details')?.scrollIntoView({ behavior: 'smooth' })}
-        className="rounded-[24px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden cursor-pointer"
+        onClick={() => setCurrentTab('STAFF_DETAILS')}
+        className="rounded-[20px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-4 shadow-xl shadow-brand-blue/20 relative overflow-hidden cursor-pointer shrink-0"
       >
         {/* Subtle decorative circles */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8" />
+        <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-8 -mt-8" />
+        <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full -ml-4 -mb-4" />
 
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <div>
-            <h3 className="text-xs font-bold tracking-wide uppercase text-blue-100 font-sans">Total Business Money Available</h3>
-            <h2 className="text-3xl font-display font-bold tracking-tight mt-1">
+            <h3 className="text-[10px] font-bold tracking-wide uppercase text-blue-100 font-sans">Total Business Money Available</h3>
+            <h2 className="text-2xl font-display font-bold tracking-tight mt-0.5">
               Rs. {liveTotalLiquidValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
           </div>
-          <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
-            <Wallet className="w-5 h-5 text-teal-300" />
+          <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20">
+            <Wallet className="w-4 h-4 text-teal-300" />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 border-t border-white/15 pt-4 mt-4">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/15 pt-2 mt-2">
           <div>
             <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wide">Safe Box (Main Fund)</div>
-            <div className="text-base font-bold font-mono text-white mt-0.5">
+            <div className="text-sm font-bold font-mono text-white mt-0.5">
               Rs. {remainingTreasury.toLocaleString()}
             </div>
           </div>
           <div>
             <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wide">Money with Staff</div>
-            <div className="text-base font-bold font-mono text-white mt-0.5">
+            <div className="text-sm font-bold font-mono text-white mt-0.5">
               Rs. {supervisorRemaining.toLocaleString()}
             </div>
           </div>
@@ -229,73 +247,75 @@ export default function OwnerDashboardView({
       </motion.div>
 
       {/* Corporate Summary Cards Grid */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 shrink-0">
         {/* Supervisors Card */}
         <div 
-          onClick={() => document.getElementById('all-staff-details')?.scrollIntoView({ behavior: 'smooth' })}
-          className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+          onClick={() => setCurrentTab('STAFF')}
+          className={`p-3 rounded-[16px] border shadow-sm transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
           }`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Staff</span>
+            <span className="text-[10px] font-bold text-slate-400">Staff</span>
             <div className="p-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <Users className="w-4 h-4 text-blue-500" />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold font-display">{supervisors.length}</div>
-            <span className="text-[10px] text-slate-400 font-medium">On duty</span>
+          <div className="mt-1.5">
+            <div className="text-xl font-bold font-display">{supervisors.length}</div>
+            <span className="text-[9px] text-slate-400 font-medium">On duty</span>
           </div>
         </div>
 
         {/* Pending Approval Card */}
         <div 
-          onClick={() => document.getElementById('pending-approvals-section')?.scrollIntoView({ behavior: 'smooth' })}
-          className={`p-4 rounded-[20px] border shadow-sm transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+          onClick={() => setCurrentTab('PENDING')}
+          className={`p-3 rounded-[16px] border shadow-sm transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
           }`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">Pending</span>
+            <span className="text-[10px] font-bold text-slate-400">Pending</span>
             <div className="p-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
               <Clock className="w-4 h-4 text-amber-500" />
             </div>
           </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold font-display text-amber-500">
+          <div className="mt-1.5">
+            <div className="text-xl font-bold font-display text-amber-500">
               Rs. {totalPending >= 1000 ? (totalPending / 1000).toFixed(1) + 'k' : totalPending}
             </div>
-            <span className="text-[10px] text-slate-400 font-medium">To approve</span>
+            <span className="text-[9px] text-slate-400 font-medium">To approve</span>
           </div>
         </div>
 
         {/* Expenses Card (Full Width) */}
-        <div className={`col-span-2 p-4 rounded-[20px] border shadow-sm transition-all-300 flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        <div className={`col-span-2 p-3 rounded-[16px] border shadow-sm transition-all-300 flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
           }`}>
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-slate-400">Total Spent</span>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[10px] font-bold text-slate-400">Total Spent</span>
             </div>
-            <div className="text-2xl font-bold font-display text-red-500">Rs. {totalSpent.toLocaleString()}</div>
-            <span className="text-[10px] text-slate-400 font-medium">Approved purchases</span>
+            <div className="text-xl font-bold font-display text-red-500">Rs. {totalSpent.toLocaleString()}</div>
+            <span className="text-[9px] text-slate-400 font-medium">Approved purchases</span>
           </div>
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl">
-            <TrendingDown className="w-6 h-6 text-red-500" />
+          <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-xl">
+            <TrendingDown className="w-5 h-5 text-red-500" />
           </div>
         </div>
       </div>
 
+
+
       {/* Quick Action Hub */}
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">What do you want to do?</h4>
-        <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="space-y-2 shrink-0">
+        <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">What do you want to do?</h4>
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setShowAllocateModal(true)}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition-all-300 shadow-md shadow-blue-500/10 active:scale-95 cursor-pointer"
+            className="flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-700 transition-all-300 shadow-md shadow-blue-500/10 active:scale-95 cursor-pointer"
           >
             <Coins className="w-4 h-4" />
             <span>Send Money</span>
           </button>
           <button
             onClick={() => setShowAddSupModal(true)}
-            className={`flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
+            className={`flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl border-2 font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
               ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
               : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
               }`}
@@ -305,7 +325,7 @@ export default function OwnerDashboardView({
           </button>
           <button
             onClick={() => setShowTransferModal(true)}
-            className={`col-span-2 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
+            className={`col-span-2 flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl border-2 font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
               ? 'bg-blue-900/20 border-blue-800 hover:bg-blue-900/40 text-blue-400'
               : 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-600'
               }`}
@@ -315,60 +335,20 @@ export default function OwnerDashboardView({
           </button>
         </div>
       </div>
-
-      {/* Interactive Micro-Chart */}
-      <div className={`p-4 rounded-3xl border transition-all-300 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Weekly Money History</h4>
-            <p className="text-[11px] text-slate-400 mt-0.5">Money sent to staff vs actual field purchases</p>
-          </div>
-          <div className="flex items-center gap-2.5 text-[10px] font-bold">
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-brand-blue" /> Sent Out
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-red-500" /> Spent
-            </span>
-          </div>
         </div>
+      )}
 
-        {/* Custom SVG Bar Chart */}
-        <div className="flex items-end justify-between h-24 pt-2">
-          {weeklyFlowData.map((d, i) => {
-            const allocHeight = (d.income / maxVal) * chartHeight;
-            const expHeight = (d.expense / maxVal) * chartHeight;
-
-            return (
-              <div key={i} className="flex flex-col items-center flex-1 space-y-1">
-                <div className="flex items-end justify-center gap-1 h-20 w-full relative group">
-                  {/* Allocation Bar */}
-                  <div
-                    style={{ height: `${Math.max(allocHeight, 2)}px` }}
-                    className="w-2.5 bg-gradient-to-t from-brand-blue to-brand-blue/80 rounded-t-sm transition-all duration-300 group-hover:opacity-90"
-                    title={`Allocated: Rs. ${d.income}`}
-                  />
-                  {/* Expense Bar */}
-                  <div
-                    style={{ height: `${Math.max(expHeight, 2)}px` }}
-                    className="w-2.5 bg-gradient-to-t from-red-500 to-orange-400 rounded-t-sm transition-all duration-300 group-hover:opacity-90"
-                    title={`Spent: Rs. ${d.expense}`}
-                  />
-
-                  {/* Micro Tooltip */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[8px] rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 font-mono shadow-md">
-                    +{d.income} | -{d.expense}
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold text-slate-400">{d.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Pending Reviews / Claims (Owner Duty) */}
+      {/* ══ PENDING REVIEWS TAB ══ */}
+      {currentTab === 'PENDING' && (
+        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center gap-2 mb-4 shrink-0">
+            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </button>
+            <h3 className="text-lg font-bold font-display">Pending Approvals</h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 pb-20">
       {ownerPendingTransactions.length > 0 && (
         <div id="pending-approvals-section" className="space-y-2">
           <div className="flex items-center justify-between">
@@ -415,7 +395,7 @@ export default function OwnerDashboardView({
                   </div>
                   <div className="text-right">
                     <div className={`text-sm font-bold font-mono ${tx.type === 'INCOME' ? 'text-emerald-500' : tx.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'}`}>
-                      {tx.type === 'INCOME' || tx.type === 'RETURN' ? '+' : '-'}${tx.amount.toLocaleString()}
+                      {tx.type === 'INCOME' || tx.type === 'RETURN' ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                     </div>
                     {tx.receiptUrl && (
                       <button
@@ -430,35 +410,66 @@ export default function OwnerDashboardView({
                 </div>
 
                 {/* Audit Action Buttons */}
-                <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5">
-                  <button
-                    onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
-                    className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${tx.type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700' : tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
-                      }`}
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>{tx.category === 'CASH_REQUEST' ? 'Approve Request' : tx.type === 'INCOME' ? 'Approve Collection' : tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
-                  </button>
-                  <button
-                    onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
-                    className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${darkMode
-                      ? 'border-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400'
-                      : 'border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500'
-                      }`}
-                  >
-                    <X className="w-3.5 h-3.5" />
-                    <span>Decline / Reject</span>
-                  </button>
-                </div>
+                {tx.status === 'NEEDS_CORRECTION' && tx.category === 'Allocation' ? (
+                  <div className="border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5 space-y-2">
+                    <div className="text-[10px] text-rose-500 font-bold bg-rose-50 dark:bg-rose-900/10 p-2 rounded-lg">
+                      Staff Note: {tx.mistakeNote}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="number" 
+                        placeholder="New Amount"
+                        id={`edit-alloc-${tx.id}`}
+                        defaultValue={tx.amount}
+                        className={`flex-1 p-2 text-xs rounded-xl border outline-none ${
+                          darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                        }`}
+                      />
+                      <button
+                        onClick={() => {
+                          const input = document.getElementById(`edit-alloc-${tx.id}`) as HTMLInputElement;
+                          const newAmount = Number(input.value);
+                          if (newAmount > 0 && onEditAllocation) {
+                            onEditAllocation(tx.id, newAmount);
+                          }
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white font-bold text-xs rounded-xl hover:bg-blue-700 active:scale-95 transition-all"
+                      >
+                        Resend
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5">
+                    <button
+                      onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
+                      className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${tx.type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700' : tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{tx.category === 'CASH_REQUEST' ? 'Approve Request' : tx.type === 'INCOME' ? 'Approve Collection' : tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
+                    </button>
+                    <button
+                      onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
+                      className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${darkMode
+                        ? 'border-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400'
+                        : 'border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500'
+                        }`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Decline / Reject</span>
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>
         </div>
       )}
-
+      
       {/* Staff to Staff Pending Transfers info */}
       {staffTransferPending.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 mt-4">
           <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Pending Staff Transfers</h4>
           <div className="space-y-2.5">
             {staffTransferPending.map((tx) => {
@@ -496,7 +507,21 @@ export default function OwnerDashboardView({
           </div>
         </div>
       )}
+          </div>
+        </div>
+      )}
 
+      {/* ══ STAFF TAB ══ */}
+      {currentTab === 'STAFF' && (
+        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center gap-2 mb-4 shrink-0">
+            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </button>
+            <h3 className="text-lg font-bold font-display">Staff Members</h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-5 pb-20">
       {/* Supervisors Budget Tracker */}
       <div className="space-y-2">
         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Staff Spending Limits</h4>
@@ -552,11 +577,24 @@ export default function OwnerDashboardView({
         </div>
       </div>
 
-      {/* ══ ALL STAFF DETAILS ══ */}
-      <div id="all-staff-details" className="space-y-2 pt-2">
-        <div className="flex items-center justify-between">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">All Staff Details</h4>
-          <div className="flex items-center gap-2">
+      {/* ══ ALL STAFF DETAILS TAB ══ */}
+          </div>
+        </div>
+      )}
+
+      {currentTab === 'STAFF_DETAILS' && (
+        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center gap-2 mb-4 shrink-0">
+            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </button>
+            <h3 className="text-lg font-bold font-display">All Staff Details</h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-20">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Filters & Staff</h4>
+              <div className="flex items-center gap-2">
             <input
               type="date"
               value={staffDetailsDate}
@@ -636,13 +674,13 @@ export default function OwnerDashboardView({
                     )}
                   </div>
 
-                  {/* Balance Chips */}
+                  {/* Balance Details (Columnar / Tabular Layout) */}
                   {bal && (
-                    <div className={`mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/60 grid ${staffDetailsDate ? 'grid-cols-5' : 'grid-cols-4'} gap-2`}>
+                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex flex-col gap-2.5">
                       {staffDetailsDate && (
-                        <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'}`}>
-                          <div className="text-[9px] font-bold text-slate-400 uppercase">Opening</div>
-                          <div className="text-xs font-bold font-mono text-slate-500 mt-0.5">
+                        <div className="flex justify-between items-center">
+                          <div className="text-[11px] font-bold text-slate-400 uppercase">Opening</div>
+                          <div className="text-xs font-bold font-mono text-slate-500">
                             Rs. {(
                               transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
                               transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
@@ -651,52 +689,56 @@ export default function OwnerDashboardView({
                           </div>
                         </div>
                       )}
-                      <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                        }`}>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">Given</div>
-                        <div className="text-xs font-bold font-mono text-blue-500 mt-0.5">
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase">Given</div>
+                        <div className="text-xs font-bold font-mono text-blue-500">
                           Rs. {(staffDetailsDate
                             ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : bal.allocatedCash + transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                           ).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                        }`}>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">Spent</div>
-                        <div className="text-xs font-bold font-mono text-red-500 mt-0.5">
+                      
+                      <div className="flex justify-between items-center">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase">Spent</div>
+                        <div className="text-xs font-bold font-mono text-red-500">
                           Rs. {(staffDetailsDate
                             ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : bal.spentCash
                           ).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`rounded-xl p-2 text-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                        }`}>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">Returned</div>
-                        <div className="text-xs font-bold font-mono text-purple-500 mt-0.5">
+
+                      <div className="flex justify-between items-center">
+                        <div className="text-[11px] font-bold text-slate-400 uppercase">Returned</div>
+                        <div className="text-xs font-bold font-mono text-purple-500">
                           Rs. {(staffDetailsDate
                             ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                           ).toLocaleString()}
                         </div>
                       </div>
-                      <div className={`rounded-xl p-2 text-center flex flex-col justify-center items-center ${darkMode ? 'bg-slate-800' : 'bg-slate-50'
-                        }`}>
-                        <div className="text-[9px] font-bold text-slate-400 uppercase">{staffDetailsDate ? 'Cur. Left' : 'Left'}</div>
-                        <div className="text-xs font-bold font-mono text-teal-500 mt-0.5">Rs. {
-                          staffDetailsDate ? (
-                            (
-                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
-                            ) +
-                            transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                            transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                            transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
-                          ).toLocaleString() :
-                          bal.remainingCash.toLocaleString()
-                        }</div>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
+                          {staffDetailsDate ? 'Cur. Left' : 'Left'}
+                        </div>
+                        <div className="text-sm font-bold font-mono text-teal-500">
+                          Rs. {
+                            staffDetailsDate ? (
+                              (
+                                transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                                transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                                transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                              ) +
+                              transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                            ).toLocaleString() :
+                            bal.remainingCash.toLocaleString()
+                          }
+                        </div>
                       </div>
                     </div>
                   )}
@@ -706,6 +748,8 @@ export default function OwnerDashboardView({
           </div>
         )}
       </div>
+        </div>
+      )}
 
       {/* ══ EDIT STAFF MODAL ══ */}
       {editingStaff && (
@@ -768,14 +812,31 @@ export default function OwnerDashboardView({
               </div>
             </div>
 
-            <button
-              onClick={handleEditSave}
-              disabled={isSavingEdit}
-              className="w-full mt-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-teal-500/20 cursor-pointer"
-            >
-              <Save className="w-4 h-4" />
-              {isSavingEdit ? 'Saving...' : 'Save Changes'}
-            </button>
+            <div className="flex flex-col gap-2 mt-5">
+              <button
+                onClick={handleEditSave}
+                disabled={isSavingEdit}
+                className="w-full py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors shadow-lg shadow-teal-500/20 cursor-pointer"
+              >
+                <Save className="w-4 h-4" />
+                {isSavingEdit ? 'Saving...' : 'Save Changes'}
+              </button>
+              
+              {onRemoveStaff && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Are you sure you want to remove this staff member? Their past transactions will be kept.')) {
+                      onRemoveStaff(editingStaff.id);
+                      setEditingStaff(null);
+                    }
+                  }}
+                  className="w-full py-2.5 rounded-xl border border-rose-200 text-rose-500 hover:bg-rose-50 dark:border-rose-900/50 dark:hover:bg-rose-900/20 font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Remove Staff
+                </button>
+              )}
+            </div>
           </motion.div>
         </div>
       )}
@@ -868,17 +929,86 @@ export default function OwnerDashboardView({
               </div>
 
               {allocPaymentMethod === 'ONLINE' && (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-400">Bank Name</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. HDFC, ICICI, SBI"
-                    value={allocBankName}
-                    onChange={(e) => setAllocBankName(e.target.value)}
-                    className={`w-full p-2.5 text-xs rounded-xl border outline-none font-medium ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                      }`}
-                    required={allocPaymentMethod === 'ONLINE'}
-                  />
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {bankList.map((bank) => (
+                      <button
+                        key={bank}
+                        type="button"
+                        onClick={() => { setAllocBankName(bank); setShowNewBankForm(false); }}
+                        className={`flex-1 min-w-[60px] py-2 rounded-xl text-xs font-bold transition-colors border cursor-pointer ${allocBankName === bank ? 'bg-blue-500 text-white border-blue-500 shadow-md shadow-blue-500/20' : (darkMode ? 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50')}`}
+                      >
+                        {bank}
+                      </button>
+                    ))}
+                    {!showNewBankForm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewBankForm(true)}
+                        className={`flex-1 min-w-[60px] py-2 rounded-xl text-xs font-bold transition-colors border border-dashed flex items-center justify-center gap-1 cursor-pointer ${darkMode ? 'border-slate-600 text-slate-400 hover:text-white hover:bg-slate-800' : 'border-slate-300 text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add</span>
+                      </button>
+                    ) : (
+                      <div className="flex-1 min-w-[120px] flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-xl px-2 py-1 border border-slate-200 dark:border-slate-700">
+                        <input
+                          type="text"
+                          placeholder="Bank name..."
+                          value={newBankName}
+                          onChange={(e) => setNewBankName(e.target.value)}
+                          className="bg-transparent text-xs font-bold px-1 py-1 outline-none w-full text-slate-800 dark:text-white"
+                          maxLength={20}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const trimmed = newBankName.trim();
+                              if (trimmed) {
+                                if (!bankList.some(b => b.toLowerCase() === trimmed.toLowerCase())) {
+                                  setBankList([...bankList, trimmed]);
+                                }
+                                setAllocBankName(trimmed);
+                                setNewBankName('');
+                                setShowNewBankForm(false);
+                              }
+                            } else if (e.key === 'Escape') {
+                              setShowNewBankForm(false);
+                              setNewBankName('');
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = newBankName.trim();
+                            if (trimmed) {
+                              if (!bankList.some(b => b.toLowerCase() === trimmed.toLowerCase())) {
+                                setBankList([...bankList, trimmed]);
+                              }
+                              setAllocBankName(trimmed);
+                              setNewBankName('');
+                              setShowNewBankForm(false);
+                            }
+                          }}
+                          className="p-1 rounded-md bg-blue-500 text-white cursor-pointer hover:bg-blue-600 shrink-0"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewBankForm(false);
+                            setNewBankName('');
+                          }}
+                          className="p-1 rounded-md bg-slate-200 text-slate-600 cursor-pointer hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

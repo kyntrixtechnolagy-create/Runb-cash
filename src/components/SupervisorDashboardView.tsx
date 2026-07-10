@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import {
   TrendingDown,
@@ -35,6 +36,8 @@ interface SupervisorDashboardViewProps {
   onEditExpense?: (tx: Transaction) => void;
   onApproveTransfer?: (txId: string, userId: string) => void;
   onDeclineTransfer?: (txId: string, userId: string) => void;
+  onApproveAllocation?: (txId: string) => void;
+  onRerequestAllocation?: (txId: string, note: string) => void;
 }
 
 export default function SupervisorDashboardView({
@@ -50,8 +53,14 @@ export default function SupervisorDashboardView({
   onViewTransactionDetails,
   onEditExpense,
   onApproveTransfer,
-  onDeclineTransfer
+  onDeclineTransfer,
+  onApproveAllocation,
+  onRerequestAllocation
 }: SupervisorDashboardViewProps) {
+  const [currentTab, setCurrentTab] = useState<'HOME' | 'PURCHASES'>('HOME');
+  const [rerequestNote, setRerequestNote] = useState<{ [key: string]: string }>({});
+  const [showRerequestInput, setShowRerequestInput] = useState<{ [key: string]: boolean }>({});
+
   // Filter transactions for this supervisor
   const myTransactions = transactions.filter((t) => t.supervisorId === user.id);
 
@@ -86,21 +95,28 @@ export default function SupervisorDashboardView({
     } catch { return false; }
   });
 
+  // Pending Allocations (sent by owner)
+  const myPendingAllocations = myTransactions.filter(t => 
+    t.category === 'Allocation' && t.status === 'PENDING'
+  );
+
   return (
-    <div className="flex-1 overflow-y-auto no-scrollbar pb-28 p-4 space-y-5 relative">
+    <div className="flex-1 overflow-hidden p-4 flex flex-col relative h-full">
+      {currentTab === 'HOME' && (
+        <div className="flex-1 flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* Dynamic Header Banner / Profile Welcome */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-[24px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden"
+        className="rounded-[20px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden shrink-0"
       >
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8" />
+        <div className="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full -mr-10 -mt-10" />
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full -ml-6 -mb-6" />
 
         <div className="flex items-center justify-between mb-2">
           <div>
-            <h3 className="text-xs font-semibold tracking-wide uppercase text-teal-100">My Leftover Money</h3>
-            <h2 className="text-3xl font-display font-bold tracking-tight mt-1">
+            <h3 className="text-[10px] font-semibold tracking-wide uppercase text-teal-100">My Leftover Money</h3>
+            <h2 className="text-3xl font-display font-bold tracking-tight mt-0.5">
               Rs. {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </h2>
           </div>
@@ -131,13 +147,13 @@ export default function SupervisorDashboardView({
 
         {/* Dynamic Warning if cash is low */}
         {availableCash < 200 && (
-          <div className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-2 mt-3 text-[11px] text-red-100 font-bold">
+          <div className="flex items-center gap-1.5 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-xl p-2 mt-2 text-[10px] text-red-100 font-bold">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            <span>Your balance is getting very low. Please ask the owner to send you more money soon.</span>
+            <span>Balance low. Please ask for more money soon.</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 border-t border-white/15 pt-4 mt-4">
+        <div className="grid grid-cols-2 gap-3 border-t border-white/15 pt-3 mt-3">
           <div>
             <div className="text-[10px] font-semibold tracking-wider text-teal-200 uppercase">Total Money Given</div>
             <div className="text-sm font-bold font-mono text-white mt-0.5">
@@ -188,6 +204,79 @@ export default function SupervisorDashboardView({
         </div>
       </div>
 
+      {myPendingAllocations.length > 0 && (
+        <div className="space-y-3 mt-4">
+          <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Pending Allocations From Owner</h4>
+          {myPendingAllocations.map(tx => (
+            <div key={tx.id} className={`p-4 rounded-2xl border ${darkMode ? 'bg-slate-900 border-teal-900/50' : 'bg-teal-50/50 border-teal-100'}`}>
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <div className="text-xs font-bold text-teal-600 uppercase tracking-wider mb-1">New Allocation</div>
+                  <div className="text-lg font-bold font-mono text-slate-800 dark:text-slate-100">Rs. {tx.amount.toLocaleString()}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] text-slate-500">Date: {tx.date}</div>
+                  <div className="text-[10px] text-slate-500 mt-1 max-w-[120px]">
+                    {(() => {
+                      try {
+                        return JSON.parse(tx.description).note;
+                      } catch { return tx.description; }
+                    })()}
+                  </div>
+                </div>
+              </div>
+              
+              {showRerequestInput[tx.id] ? (
+                <div className="space-y-2 mt-2">
+                  <input
+                    type="text"
+                    placeholder="Enter reason for re-request (e.g. amount is wrong)"
+                    value={rerequestNote[tx.id] || ''}
+                    onChange={(e) => setRerequestNote(prev => ({ ...prev, [tx.id]: e.target.value }))}
+                    className={`w-full p-2 text-xs rounded-xl border outline-none ${
+                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-200'
+                    }`}
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        if (rerequestNote[tx.id]?.trim() && onRerequestAllocation) {
+                          onRerequestAllocation(tx.id, rerequestNote[tx.id]);
+                        }
+                      }}
+                      className="flex-1 py-2 bg-rose-500 text-white font-bold text-xs rounded-xl hover:bg-rose-600 active:scale-95 transition-all"
+                    >
+                      Submit Re-request
+                    </button>
+                    <button
+                      onClick={() => setShowRerequestInput(prev => ({ ...prev, [tx.id]: false }))}
+                      className="px-3 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => onApproveAllocation && onApproveAllocation(tx.id)}
+                    className="flex-1 py-2 bg-emerald-500 text-white font-bold text-xs rounded-xl hover:bg-emerald-600 active:scale-95 transition-all"
+                  >
+                    Accept Cash
+                  </button>
+                  <button
+                    onClick={() => setShowRerequestInput(prev => ({ ...prev, [tx.id]: true }))}
+                    className="flex-1 py-2 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-xs rounded-xl hover:bg-slate-300 dark:hover:bg-slate-700 active:scale-95 transition-all"
+                  >
+                    Re-request
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {myPendingTransfers.length > 0 && (
         <div className="space-y-3">
           <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Pending Transfer Requests</h4>
@@ -236,27 +325,55 @@ export default function SupervisorDashboardView({
       )}
 
       {/* Simple Ledger Progress Chart */}
-      <div className={`p-4 rounded-2xl border transition-all-300 ${
+      <div className={`p-4 rounded-xl border transition-all-300 shrink-0 ${
         darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
       }`}>
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">How much has been spent:</span>
-          <span className="text-xs font-bold text-teal-500">{Math.round(ratioUsed)}% Spent</span>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">How much has been spent:</span>
+          <span className="text-[10px] font-bold text-teal-500">{Math.round(ratioUsed)}% Spent</span>
         </div>
-        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
           <div
             style={{ width: `${Math.min(ratioUsed, 100)}%` }}
             className="h-full bg-gradient-to-r from-brand-blue to-brand-teal rounded-full transition-all duration-500"
           />
         </div>
-        <div className="flex justify-between text-[11px] font-semibold text-slate-400 mt-2">
+        <div className="flex justify-between text-[9px] font-semibold text-slate-400 mt-1.5">
           <span>Spent overall: Rs. {overallSpentApproved.toLocaleString()}</span>
           <span>Leftover: Rs. {availableCash.toLocaleString()}</span>
         </div>
       </div>
 
-      {/* Recent Ledger Activity */}
-      <div className="space-y-3">
+      {/* Recent Purchases Summary Card */}
+      <div 
+        onClick={() => setCurrentTab('PURCHASES')}
+        className={`p-4 rounded-2xl border transition-all-300 shrink-0 flex items-center justify-between cursor-pointer active:scale-[0.98] ${
+        darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+      }`}>
+        <div>
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">My Recent Purchases</span>
+          </div>
+          <div className="text-xl font-bold font-display text-blue-600 dark:text-blue-400">{myTransactions.length} items</div>
+          <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">Click to view all transactions</span>
+        </div>
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+          <FileSpreadsheet className="w-5 h-5 text-blue-500" />
+        </div>
+      </div>
+        </div>
+      )}
+
+      {currentTab === 'PURCHASES' && (
+        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center gap-2 mb-4 shrink-0">
+            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </button>
+            <h3 className="text-lg font-bold font-display">My Purchases</h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-24">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">My Recent Purchases</h4>
           <span className="text-[11px] font-semibold text-slate-400">Total items: {myTransactions.length}</span>
@@ -372,7 +489,9 @@ export default function SupervisorDashboardView({
             ))}
           </div>
         )}
+        </div>
       </div>
+      )}
 
       {/* Floating Action Button (FAB) */}
       <button

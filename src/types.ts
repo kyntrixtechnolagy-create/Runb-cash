@@ -14,6 +14,7 @@ export interface User {
   phone?: string;
   designation?: string;
   spendLimit?: number;
+  isActive?: boolean;
 }
 
 export interface SupervisorBalance {

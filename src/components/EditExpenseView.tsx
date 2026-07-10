@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
-  DollarSign,
   Calendar,
   Camera,
   Paperclip,
