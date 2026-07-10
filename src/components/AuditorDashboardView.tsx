@@ -4,22 +4,28 @@ import { IndianRupee, ShieldCheck, Users, Activity, FileText } from 'lucide-reac
 import { PettyCashStats, SupervisorBalance, Transaction, User } from '../types';
 
 interface AuditorDashboardViewProps {
-  currentUser: User;
-  stats: PettyCashStats;
-  supervisorBalances: SupervisorBalance[];
+  user: User;
+  supervisors: User[];
+  balances: SupervisorBalance[];
   transactions: Transaction[];
   darkMode: boolean;
-  onNavigate: (screen: any) => void;
+  onViewTransactionDetails: (tx: Transaction) => void;
 }
 
 export default function AuditorDashboardView({
-  currentUser,
-  stats,
-  supervisorBalances,
+  user,
+  supervisors,
+  balances,
   transactions,
   darkMode,
-  onNavigate
+  onViewTransactionDetails
 }: AuditorDashboardViewProps) {
+
+  const stats = {
+    totalCash: balances.reduce((sum, b) => sum + b.allocatedCash, 0),
+    totalSpent: balances.reduce((sum, b) => sum + b.spentCash, 0),
+    totalRemaining: balances.reduce((sum, b) => sum + b.remainingCash, 0),
+  };
 
   // Formatter for Indian Rupees
   const formatINR = (amount: number) => {
@@ -127,42 +133,48 @@ export default function AuditorDashboardView({
         </div>
 
         <div className="space-y-3">
-          {supervisorBalances.length > 0 ? (
-            supervisorBalances.map((supervisor, i) => (
-              <motion.div 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + (i * 0.1) }}
-                key={supervisor.supervisorId}
-                className={`p-4 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <div className="font-bold text-sm truncate max-w-[60%]">{supervisor.supervisorName}</div>
-                  <div className="text-xs font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500">
-                    Allocated: {formatINR(supervisor.allocatedCash)}
+
+          {balances.length > 0 ? (
+            balances.map((balance, i) => {
+              const supervisor = supervisors.find(s => s.id === balance.supervisorId);
+              return (
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 + (i * 0.1) }}
+                  key={balance.id}
+                  className={`p-4 rounded-3xl border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}
+                >
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="font-bold text-sm truncate max-w-[60%]">
+                      {supervisor ? supervisor.name : balance.supervisorName}
+                    </div>
+                    <div className="text-xs font-bold px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500">
+                      Allocated: {formatINR(balance.allocatedCash)}
+                    </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center justify-between mt-3 text-xs">
-                  <div>
-                    <span className="text-slate-400 font-medium">Spent: </span>
-                    <span className="font-bold text-red-500">{formatINR(supervisor.spentCash)}</span>
+                  
+                  <div className="flex items-center justify-between mt-3 text-xs">
+                    <div>
+                      <span className="text-slate-400 font-medium">Spent: </span>
+                      <span className="font-bold text-red-500">{formatINR(balance.spentCash)}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium">Remaining: </span>
+                      <span className="font-bold text-emerald-500">{formatINR(balance.remainingCash)}</span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-slate-400 font-medium">Remaining: </span>
-                    <span className="font-bold text-emerald-500">{formatINR(supervisor.remainingCash)}</span>
+                  
+                  {/* Visual Progress Bar */}
+                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-3 overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full"
+                      style={{ width: `${balance.allocatedCash > 0 ? Math.min(100, (balance.spentCash / balance.allocatedCash) * 100) : 0}%` }}
+                    ></div>
                   </div>
-                </div>
-                
-                {/* Visual Progress Bar */}
-                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-3 overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full"
-                    style={{ width: `${supervisor.allocatedCash > 0 ? Math.min(100, (supervisor.spentCash / supervisor.allocatedCash) * 100) : 0}%` }}
-                  ></div>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           ) : (
              <div className={`text-center py-6 rounded-3xl border border-dashed ${darkMode ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
               <p className="text-xs font-medium">No staff members found.</p>
