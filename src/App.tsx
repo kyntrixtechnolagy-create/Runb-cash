@@ -70,7 +70,7 @@ export default function App() {
 
   // Push Notification State
   const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
-  
+
   useEffect(() => {
     if ('Notification' in window) {
       setPushPermissionStatus(Notification.permission);
@@ -89,6 +89,12 @@ export default function App() {
       }
     }
   };
+
+  useEffect(() => {
+    if (currentUser && currentUser.id && pushPermissionStatus === 'granted') {
+      subscribeToPushNotifications(currentUser.id);
+    }
+  }, [currentUser, pushPermissionStatus]);
 
   // Time & Status bar state
   const [currentTime, setCurrentTime] = useState('10:45 AM');
@@ -387,7 +393,7 @@ export default function App() {
       ]).select().single();
 
       if (txError) throw txError;
-      
+
       const newTx: Transaction = { ...(txData as Transaction) };
       updateDB(supervisors, balances, [newTx, ...transactions]);
       showToast(`Initiated transfer of Rs. ${amount.toLocaleString()} from ${targetSender.name} to ${targetReceiver.name}`, 'SUCCESS');
@@ -410,11 +416,11 @@ export default function App() {
       if (isReceiver) transferState.receiverApproved = true;
 
       const bothApproved = transferState.senderApproved && transferState.receiverApproved;
-      
+
       if (bothApproved) {
         const senderBal = balances.find(b => b.supervisorId === tx.supervisorId);
         const receiverBal = balances.find(b => b.supervisorId === transferState.receiverId);
-        
+
         const newSenderRemaining = (senderBal?.remainingCash ?? 0) - tx.amount;
         const newSenderSpent = (senderBal?.spentCash ?? 0) + tx.amount;
         const newReceiverRemaining = (receiverBal?.remainingCash ?? 0) + tx.amount;
@@ -635,10 +641,10 @@ export default function App() {
 
       updateDB(supervisors, updatedBalances, transactions.map((t) => t.id === txId ? { ...t, status } : t));
       showToast(`Claim sheet is ${status.toLowerCase()}`, 'SUCCESS');
-      
+
       const statusWord = status === 'APPROVED' ? 'Approved' : 'Rejected';
       await sendPushNotification(targetTx.supervisorId, `Expense ${statusWord}`, `Your expense of Rs. ${targetTx.amount.toLocaleString()} was ${status.toLowerCase()}.`);
-      
+
       const targetBal = updatedBalances.find(b => b.supervisorId === targetTx.supervisorId);
       if (status === 'APPROVED' && targetBal && targetBal.remainingCash < 1000) {
         await notifyOwners('Low Balance Alert', `${targetTx.supervisorName} has a low balance of Rs. ${targetBal.remainingCash.toLocaleString()}`);
@@ -936,7 +942,7 @@ export default function App() {
   const pendingReturns = transactions
     .filter(t => t.supervisorId === currentUser?.id && t.type === 'RETURN' && t.status === 'PENDING')
     .reduce((sum, t) => sum + t.amount, 0);
-  
+
   let spendableCash = Math.max(0, activeSupBalance.remainingCash - pendingReturns);
   if (currentUser?.spendLimit && currentUser.spendLimit > 0) {
     const limitRemaining = Math.max(0, currentUser.spendLimit - activeSupBalance.spentCash);
