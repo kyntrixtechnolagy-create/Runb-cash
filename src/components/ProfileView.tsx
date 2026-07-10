@@ -54,6 +54,7 @@ export default function ProfileView({
   const [isSavingInfo, setIsSavingInfo] = useState(false);
 
   const isOwner = user.role === 'OWNER';
+  const isAuditor = user.role === 'AUDITOR';
 
   const handleSaveInfo = async () => {
     setIsSavingInfo(true);
@@ -124,21 +125,23 @@ export default function ProfileView({
               isOwner ? 'border-blue-500' : 'border-teal-500'
             }`}
           />
-          <button
-            onClick={() => {
-              if (isEditingInfo) {
-                handleSaveInfo();
-              } else {
-                setIsEditingInfo(true);
-              }
-            }}
-            disabled={isSavingInfo}
-            className={`absolute bottom-0 right-0 p-1.5 rounded-full text-white border-2 border-white dark:border-slate-950 cursor-pointer transition-colors ${
-              isOwner ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'
-            }`}
-          >
-            {isSavingInfo ? <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : isEditingInfo ? <Save className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
-          </button>
+          {!isAuditor && (
+            <button
+              onClick={() => {
+                if (isEditingInfo) {
+                  handleSaveInfo();
+                } else {
+                  setIsEditingInfo(true);
+                }
+              }}
+              disabled={isSavingInfo}
+              className={`absolute bottom-0 right-0 p-1.5 rounded-full text-white border-2 border-white dark:border-slate-950 cursor-pointer transition-colors ${
+                isOwner ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'
+              }`}
+            >
+              {isSavingInfo ? <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" /> : isEditingInfo ? <Save className="w-3.5 h-3.5" /> : <Edit2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
 
         <h3 className="text-lg font-bold font-display">{user.name}</h3>
@@ -238,97 +241,101 @@ export default function ProfileView({
           </button>
         </div>
 
-        {/* Passcode Trigger */}
-        <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3 flex items-center justify-between">
-          <button
-            onClick={() => setShowPassForm(!showPassForm)}
-            className="flex items-center gap-2.5 text-left w-full focus:outline-none"
-          >
-            <Lock className="w-4.5 h-4.5 text-slate-400" />
-            <div className="flex-1">
-              <span className="text-xs font-bold block">Change Passcode</span>
-              <span className="text-[10px] text-slate-400 block">Manage terminal login security</span>
-            </div>
-            <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${showPassForm ? 'rotate-90' : ''}`} />
-          </button>
-        </div>
-
-        {/* Simulated Password Form */}
-        {showPassForm && (
-          <motion.form
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            onSubmit={handlePasswordSubmit}
-            className="space-y-3.5 border-t border-dashed border-slate-100 dark:border-slate-800/60 pt-4"
-          >
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Current Passcode</label>
-              <input
-                type="password"
-                placeholder="••••"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                maxLength={8}
-                className={`w-full p-2 text-xs rounded-xl border outline-none font-mono ${
-                  darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-200'
-                }`}
-              />
+        {!isAuditor && (
+          <>
+            {/* Passcode Trigger */}
+            <div className="border-t border-slate-100 dark:border-slate-800/60 pt-3 flex items-center justify-between">
+              <button
+                onClick={() => setShowPassForm(!showPassForm)}
+                className="flex items-center gap-2.5 text-left w-full focus:outline-none"
+              >
+                <Lock className="w-4.5 h-4.5 text-slate-400" />
+                <div className="flex-1">
+                  <span className="text-xs font-bold block">Change Passcode</span>
+                  <span className="text-[10px] text-slate-400 block">Manage terminal login security</span>
+                </div>
+                <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${showPassForm ? 'rotate-90' : ''}`} />
+              </button>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">New Passcode</label>
-              <div className="relative">
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  placeholder="••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  maxLength={8}
-                  className={`w-full py-2 pl-3 pr-10 text-xs rounded-xl border outline-none font-mono ${
-                    darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-200'
-                  }`}
-                />
+            {/* Simulated Password Form */}
+            {showPassForm && (
+              <motion.form
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                onSubmit={handlePasswordSubmit}
+                className="space-y-3.5 border-t border-dashed border-slate-100 dark:border-slate-800/60 pt-4"
+              >
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Current Passcode</label>
+                  <input
+                    type="password"
+                    placeholder="••••"
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    maxLength={8}
+                    className={`w-full p-2 text-xs rounded-xl border outline-none font-mono ${
+                      darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">New Passcode</label>
+                  <div className="relative">
+                    <input
+                      type={showPass ? 'text' : 'password'}
+                      placeholder="••••"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      maxLength={8}
+                      className={`w-full py-2 pl-3 pr-10 text-xs rounded-xl border outline-none font-mono ${
+                        darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-200'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                    >
+                      {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Confirm New Passcode</label>
+                  <input
+                    type="password"
+                    placeholder="••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    maxLength={8}
+                    className={`w-full p-2 text-xs rounded-xl border outline-none font-mono ${
+                      darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-200'
+                    }`}
+                  />
+                </div>
+
                 <button
-                  type="button"
-                  onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  type="submit"
+                  disabled={isChanging}
+                  className={`w-full py-2 rounded-xl text-white font-bold text-xs transition-colors shadow flex items-center justify-center gap-1.5 ${
+                    isOwner ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'
+                  }`}
                 >
-                  {showPass ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {isChanging ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4" />
+                      <span>Update Credentials</span>
+                    </>
+                  )}
                 </button>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Confirm New Passcode</label>
-              <input
-                type="password"
-                placeholder="••••"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                maxLength={8}
-                className={`w-full p-2 text-xs rounded-xl border outline-none font-mono ${
-                  darkMode ? 'bg-slate-950 border-slate-850' : 'bg-slate-50 border-slate-200'
-                }`}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isChanging}
-              className={`w-full py-2 rounded-xl text-white font-bold text-xs transition-colors shadow flex items-center justify-center gap-1.5 ${
-                isOwner ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'
-              }`}
-            >
-              {isChanging ? (
-                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Update Credentials</span>
-                </>
-              )}
-            </button>
-          </motion.form>
+              </motion.form>
+            )}
+          </>
         )}
       </div>
 

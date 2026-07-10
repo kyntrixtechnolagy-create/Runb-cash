@@ -118,7 +118,7 @@ export default function BottomNav({
       })}
 
       {/* Embedded Supervisor Add FAB inside bottom-nav spacer for elegance, if is Supervisor */}
-      {!isOwner && onFabClick && (
+      {userRole === 'SUPERVISOR' && onFabClick && (
         <button
           onClick={onFabClick}
           className="absolute -top-6 left-1/2 -translate-x-1/2 w-14 h-14 bg-gradient-to-tr from-teal-500 to-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-teal-500/35 border-4 border-slate-50 dark:border-slate-950 active:scale-90 active:rotate-90 transition-all duration-300"
