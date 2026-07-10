@@ -82,8 +82,12 @@ export default function App() {
       const permission = await Notification.requestPermission();
       setPushPermissionStatus(permission);
       if (permission === 'granted') {
-        subscribeToPushNotifications(currentUser.id);
-        showToast('Push Notifications enabled!', 'SUCCESS');
+        const result = await subscribeToPushNotifications(currentUser.id);
+        if (result && !result.success) {
+          showToast(`Push Error: ${result.error}`, 'ERROR');
+        } else {
+          showToast('Push Notifications enabled!', 'SUCCESS');
+        }
       } else {
         showToast('Permission denied.', 'ERROR');
       }
@@ -92,7 +96,13 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser && currentUser.id && pushPermissionStatus === 'granted') {
-      subscribeToPushNotifications(currentUser.id);
+      subscribeToPushNotifications(currentUser.id).then(result => {
+        if (result && !result.success && result.error !== 'VAPID public key missing from Env Vars') {
+          // We don't want to spam the user with missing VAPID key toast on every load if they are just on desktop
+          // but if it's a real DB error, show it
+          console.error("Auto-subscribe failed:", result.error);
+        }
+      });
     }
   }, [currentUser, pushPermissionStatus]);
 

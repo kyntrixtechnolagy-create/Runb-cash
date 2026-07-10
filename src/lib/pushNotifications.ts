@@ -15,10 +15,10 @@ const urlBase64ToUint8Array = (base64String: string) => {
   return outputArray;
 };
 
-export const subscribeToPushNotifications = async (userId: string) => {
+export const subscribeToPushNotifications = async (userId: string): Promise<{success: boolean, error?: string}> => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Push notifications are not supported in this browser.');
-    return;
+    return { success: false, error: 'Browser does not support Web Push' };
   }
 
   try {
@@ -29,7 +29,7 @@ export const subscribeToPushNotifications = async (userId: string) => {
       const publicVapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!publicVapidKey) {
         console.warn('VAPID public key is missing.');
-        return;
+        return { success: false, error: 'VAPID public key missing from Env Vars' };
       }
       
       subscription = await registration.pushManager.subscribe({
@@ -53,8 +53,12 @@ export const subscribeToPushNotifications = async (userId: string) => {
 
     if (error) {
       console.error('Error saving push subscription to Supabase:', error);
+      return { success: false, error: 'Database save failed: ' + error.message };
     }
-  } catch (err) {
+    
+    return { success: true };
+  } catch (err: any) {
     console.error('Failed to subscribe to push notifications:', err);
+    return { success: false, error: err.message || 'Subscription failed' };
   }
 };
