@@ -61,7 +61,7 @@ export default function ReportsView({
   const [mistakeTxId, setMistakeTxId] = useState('');
   const [mistakeNote, setMistakeNote] = useState('');
 
-  const isOwner = userRole === 'OWNER';
+  const isOwner = userRole === 'OWNER' || userRole === 'AUDITOR';
 
   // Filter transactions based on report filters & user permissions
   const reportTransactions = transactions.filter((t) => {

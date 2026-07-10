@@ -29,7 +29,7 @@ export default function BottomNav({
       id: 'DASHBOARD' as const,
       label: 'Home',
       icon: Home,
-      screen: isOwner ? ('OWNER_DASHBOARD' as const) : ('SUPERVISOR_DASHBOARD' as const)
+      screen: userRole === 'OWNER' ? 'OWNER_DASHBOARD' : userRole === 'AUDITOR' ? 'AUDITOR_DASHBOARD' : 'SUPERVISOR_DASHBOARD'
     },
     {
       id: 'TRANSACTIONS' as const,
@@ -65,7 +65,7 @@ export default function BottomNav({
 
   const getIsActive = (itemId: string) => {
     if (itemId === 'DASHBOARD') {
-      return activeScreen === 'OWNER_DASHBOARD' || activeScreen === 'SUPERVISOR_DASHBOARD';
+      return activeScreen === 'OWNER_DASHBOARD' || activeScreen === 'SUPERVISOR_DASHBOARD' || activeScreen === 'AUDITOR_DASHBOARD';
     }
     return activeScreen === itemId;
   };

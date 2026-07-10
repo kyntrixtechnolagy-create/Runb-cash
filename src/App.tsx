@@ -34,6 +34,7 @@ import LoginView from './components/LoginView';
 import SignupView from './components/SignupView';
 import DashboardHeader from './components/DashboardHeader';
 import BottomNav from './components/BottomNav';
+import AuditorDashboardView from './components/AuditorDashboardView';
 import OwnerDashboardView from './components/OwnerDashboardView';
 import SupervisorDashboardView from './components/SupervisorDashboardView';
 import TransactionsView from './components/TransactionsView';
@@ -236,7 +237,7 @@ export default function App() {
 
   const handleSplashComplete = () => {
     if (currentUser) {
-      setActiveScreen(currentUser.role === 'OWNER' ? 'OWNER_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
+      setActiveScreen(currentUser.role === 'OWNER' ? 'OWNER_DASHBOARD' : currentUser.role === 'AUDITOR' ? 'AUDITOR_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
     } else {
       setActiveScreen('LOGIN');
     }
@@ -245,7 +246,7 @@ export default function App() {
   const handleLoginSuccess = (user: UserType) => {
     setCurrentUser(user);
     showToast(`Welcome back, ${user.name}!`, 'SUCCESS');
-    setActiveScreen(user.role === 'OWNER' ? 'OWNER_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
+    setActiveScreen(user.role === 'OWNER' ? 'OWNER_DASHBOARD' : user.role === 'AUDITOR' ? 'AUDITOR_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
   };
 
   const handleLogout = async () => {
@@ -936,7 +937,7 @@ export default function App() {
     setCurrentUser(user);
     localStorage.setItem('pc_logged_user', JSON.stringify(user));
     showToast(`Switched terminal role: ${user.name}`, 'SUCCESS');
-    setActiveScreen(user.role === 'OWNER' ? 'OWNER_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
+    setActiveScreen(user.role === 'OWNER' ? 'OWNER_DASHBOARD' : user.role === 'AUDITOR' ? 'AUDITOR_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
   };
 
   // Get active supervisor balance
@@ -1142,7 +1143,7 @@ export default function App() {
 
                       {activeScreen === 'TRANSACTIONS' && (
                         <TransactionsView
-                          transactions={currentUser.role === 'OWNER' ? transactions : transactions.filter(t => t.supervisorId === currentUser.id)}
+                          transactions={(currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR') ? transactions : transactions.filter(t => t.supervisorId === currentUser.id)}
                           userRole={currentUser.role}
                           darkMode={darkMode}
                           onReviewTransaction={handleReviewTransaction}

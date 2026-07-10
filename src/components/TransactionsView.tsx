@@ -51,6 +51,8 @@ export default function TransactionsView({
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
 
   const isOwner = userRole === 'OWNER';
+  const isSupervisor = userRole === 'SUPERVISOR';
+  const isAuditor = userRole === 'AUDITOR';
 
   // Apply filters
   const filteredTx = transactions.filter((tx) => {
@@ -290,7 +292,7 @@ export default function TransactionsView({
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[8px] font-bold">
                             <XCircle className="w-2 h-2" /> Rejected
                           </span>
-                          {!isOwner && onEditExpense && (
+                          {isSupervisor && onEditExpense && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -308,7 +310,7 @@ export default function TransactionsView({
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[8px] font-bold">
                             <AlertCircle className="w-2 h-2" /> Needs Correction
                           </span>
-                          {!isOwner && onEditExpense && (
+                          {isSupervisor && onEditExpense && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

@@ -49,9 +49,9 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
         if (dbError) throw dbError;
         
         if (userData) {
-          if (userData.role === 'OWNER' && companyCode !== import.meta.env.VITE_COMPANY_CODE) {
+          if ((userData.role === 'OWNER' || userData.role === 'AUDITOR') && companyCode !== import.meta.env.VITE_COMPANY_CODE) {
             await supabase.auth.signOut();
-            setErrorMsg('Owner login requires the valid Company Security Code.');
+            setErrorMsg(`${userData.role === 'OWNER' ? 'Owner' : 'Auditor'} login requires the valid Company Security Code.`);
             setIsLoading(false);
             return;
           }
@@ -162,7 +162,7 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
               <Key className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Required for Owner login..."
+                placeholder="Required for Owner & Auditor login..."
                 value={companyCode}
                 onChange={(e) => setCompanyCode(e.target.value)}
                 disabled={isLoading}

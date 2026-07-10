@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type UserRole = 'OWNER' | 'SUPERVISOR';
+export type UserRole = 'OWNER' | 'SUPERVISOR' | 'AUDITOR';
 
 export interface User {
   id: string;
@@ -56,6 +56,7 @@ export type ActiveScreen =
   | 'SIGNUP'
   | 'OWNER_DASHBOARD'
   | 'SUPERVISOR_DASHBOARD'
+  | 'AUDITOR_DASHBOARD'
   | 'TRANSACTIONS'
   | 'ADD_EXPENSE'
   | 'EDIT_EXPENSE'
