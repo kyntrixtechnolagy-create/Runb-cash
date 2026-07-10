@@ -10,6 +10,7 @@ interface AuditorDashboardViewProps {
   transactions: Transaction[];
   darkMode: boolean;
   onViewTransactionDetails: (tx: Transaction) => void;
+  onNavigate: (screen: any) => void;
 }
 
 export default function AuditorDashboardView({
@@ -18,7 +19,8 @@ export default function AuditorDashboardView({
   balances,
   transactions,
   darkMode,
-  onViewTransactionDetails
+  onViewTransactionDetails,
+  onNavigate
 }: AuditorDashboardViewProps) {
 
   const stats = {

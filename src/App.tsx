@@ -1126,6 +1126,7 @@ export default function App() {
                           transactions={transactions}
                           darkMode={darkMode}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
+                          onNavigate={(screen) => setActiveScreen(screen)}
                         />
                       )}
 
