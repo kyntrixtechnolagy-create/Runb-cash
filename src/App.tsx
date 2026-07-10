@@ -25,6 +25,7 @@ import {
 import { ActiveScreen, UserRole, User as UserType, Transaction, SupervisorBalance } from './types';
 import { supabase } from './lib/supabase';
 import { createClient } from '@supabase/supabase-js';
+import { subscribeToPushNotifications } from './lib/pushNotifications';
 
 // Subcomponents
 import SplashView from './components/SplashView';
@@ -83,6 +84,13 @@ export default function App() {
     const interval = setInterval(updateTime, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Subscribe to Push Notifications
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      subscribeToPushNotifications(currentUser.id);
+    }
+  }, [currentUser]);
 
   // Fetch real data from Supabase
   const loadDatabase = async (userId: string) => {
@@ -169,6 +177,24 @@ export default function App() {
     });
   };
 
+  // Push Notification Helpers
+  const sendPushNotification = async (targetUserId: string, title: string, body: string) => {
+    try {
+      await supabase.functions.invoke('send-push', {
+        body: { targetUserId, title, body }
+      });
+    } catch (err) {
+      console.error('Failed to send push notification:', err);
+    }
+  };
+
+  const notifyOwners = async (title: string, body: string) => {
+    const owners = supervisors.filter(s => s.role === 'OWNER');
+    for (const owner of owners) {
+      await sendPushNotification(owner.id, title, body);
+    }
+  };
+
   const handleSplashComplete = () => {
     if (currentUser) {
       setActiveScreen(currentUser.role === 'OWNER' ? 'OWNER_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
@@ -217,6 +243,7 @@ export default function App() {
       const newTx: Transaction = { ...(txData as Transaction) };
       updateDB(supervisors, balances, [newTx, ...transactions]);
       showToast(`Sent Rs. ${amount.toLocaleString()} to ${targetSup.name}. Waiting for staff to accept.`, 'SUCCESS');
+      await sendPushNotification(supId, 'Cash Allocated', `Owner allocated Rs. ${amount.toLocaleString()} to you.`);
     } catch (err: any) {
       showToast(err.message || 'Error saving allocation to DB', 'ERROR');
     }
@@ -266,6 +293,7 @@ export default function App() {
 
       updateDB(supervisors, updatedBalances, transactions.map((t) => t.id === txId ? { ...t, status: 'APPROVED' } : t));
       showToast('Cash allocation accepted and added to your balance!', 'SUCCESS');
+      await notifyOwners('Allocation Accepted', `${targetTx.supervisorName} accepted Rs. ${targetTx.amount.toLocaleString()}`);
     } catch (err: any) {
       showToast(err.message || 'Error approving allocation', 'ERROR');
     }
@@ -340,6 +368,7 @@ export default function App() {
       const newTx: Transaction = { ...(txData as Transaction) };
       updateDB(supervisors, balances, [newTx, ...transactions]);
       showToast(`Initiated transfer of Rs. ${amount.toLocaleString()} from ${targetSender.name} to ${targetReceiver.name}`, 'SUCCESS');
+      await sendPushNotification(receiverId, 'Transfer Initiated', `${targetSender.name} initiated a transfer of Rs. ${amount.toLocaleString()}`);
     } catch (err: any) {
       showToast(err.message || 'Error initiating transfer', 'ERROR');
     }
@@ -413,6 +442,7 @@ export default function App() {
 
         updateDB(supervisors, updatedBalances, [rxTxData as Transaction, ...updatedTxs]);
         showToast('Transfer completed successfully!', 'SUCCESS');
+        await sendPushNotification(tx.supervisorId, 'Transfer Completed', `${transferState.receiverName} approved your transfer of Rs. ${tx.amount.toLocaleString()}`);
       } else {
         const { error: txErr1 } = await supabase.from('transactions').update({
           description: JSON.stringify(transferState)
@@ -582,6 +612,14 @@ export default function App() {
 
       updateDB(supervisors, updatedBalances, transactions.map((t) => t.id === txId ? { ...t, status } : t));
       showToast(`Claim sheet is ${status.toLowerCase()}`, 'SUCCESS');
+      
+      const statusWord = status === 'APPROVED' ? 'Approved' : 'Rejected';
+      await sendPushNotification(targetTx.supervisorId, `Expense ${statusWord}`, `Your expense of Rs. ${targetTx.amount.toLocaleString()} was ${status.toLowerCase()}.`);
+      
+      const targetBal = updatedBalances.find(b => b.supervisorId === targetTx.supervisorId);
+      if (status === 'APPROVED' && targetBal && targetBal.remainingCash < 1000) {
+        await notifyOwners('Low Balance Alert', `${targetTx.supervisorName} has a low balance of Rs. ${targetBal.remainingCash.toLocaleString()}`);
+      }
     } catch (err: any) {
       showToast(err.message || 'Error updating transaction', 'ERROR');
     }
@@ -726,6 +764,7 @@ export default function App() {
       const newTx = txData as Transaction;
       updateDB(supervisors, balances, [newTx, ...transactions]);
       showToast('Expense claim sheet submitted for audit!', 'SUCCESS');
+      await notifyOwners('New Expense Submitted', `${currentUser.name} submitted an expense for Rs. ${data.amount.toLocaleString()}`);
       setActiveScreen('SUPERVISOR_DASHBOARD');
     } catch (err: any) {
       showToast(err.message || 'Failed to submit expense', 'ERROR');
@@ -756,6 +795,7 @@ export default function App() {
       const newTx = txData as Transaction;
       updateDB(supervisors, balances, [newTx, ...transactions]);
       showToast('Cash return submitted for owner approval!', 'SUCCESS');
+      await notifyOwners('Cash Returned', `${currentUser.name} returned Rs. ${amount.toLocaleString()}`);
       setActiveScreen('SUPERVISOR_DASHBOARD');
     } catch (err: any) {
       showToast(err.message || 'Failed to return cash', 'ERROR');
@@ -786,6 +826,7 @@ export default function App() {
       const newTx = txData as Transaction;
       updateDB(supervisors, balances, [newTx, ...transactions]);
       showToast('Cash collection submitted for approval.', 'SUCCESS');
+      await notifyOwners('Cash Collected', `${currentUser.name} collected Rs. ${amount.toLocaleString()} from ${siteName}`);
       setActiveScreen('SUPERVISOR_DASHBOARD');
     } catch (err: any) {
       showToast(err.message || 'Error saving collection', 'ERROR');
@@ -815,6 +856,7 @@ export default function App() {
       const finalTx = txData as Transaction;
       updateDB(supervisors, balances, [finalTx, ...transactions]);
       showToast('Money request sent to owner.', 'SUCCESS');
+      await notifyOwners('Cash Requested', `${currentUser.name} requested Rs. ${amount.toLocaleString()} for ${reason}`);
       setActiveScreen('SUPERVISOR_DASHBOARD');
     } catch (err: any) {
       showToast(err.message || 'Error saving request', 'ERROR');
