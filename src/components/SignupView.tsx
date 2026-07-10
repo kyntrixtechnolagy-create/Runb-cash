@@ -57,8 +57,12 @@ export default function SignupView({ onBackToLogin, darkMode }: SignupViewProps)
         setErrorMsg('This account type requires the Company Security Code.');
         return;
       }
-      if (companyCode !== import.meta.env.VITE_COMPANY_CODE) {
-        setErrorMsg('Invalid Company Security Code.');
+      if (activeTab === 'OWNER' && companyCode !== import.meta.env.VITE_COMPANY_CODE) {
+        setErrorMsg('Invalid Company Security Code for Owner.');
+        return;
+      }
+      if (activeTab === 'AUDITOR' && companyCode !== import.meta.env.VITE_AUDITOR_CODE) {
+        setErrorMsg('Invalid Auditor Security Code.');
         return;
       }
     }
@@ -251,7 +255,7 @@ export default function SignupView({ onBackToLogin, darkMode }: SignupViewProps)
           {/* Security Code field */}
           {requiresCode && (
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase">Company Security Code <span className="text-blue-500">*</span></label>
+              <label className="text-[10px] font-semibold text-slate-400 uppercase">{isOwner ? 'Company Security Code' : 'Auditor Security Code'} <span className="text-blue-500">*</span></label>
               <div className="relative">
                 <Key className="absolute left-3.5 top-2.5 w-4 h-4 text-blue-400" />
                 <input

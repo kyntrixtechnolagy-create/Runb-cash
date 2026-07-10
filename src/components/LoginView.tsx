@@ -49,9 +49,15 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
         if (dbError) throw dbError;
         
         if (userData) {
-          if ((userData.role === 'OWNER' || userData.role === 'AUDITOR') && companyCode !== import.meta.env.VITE_COMPANY_CODE) {
+          if (userData.role === 'OWNER' && companyCode !== import.meta.env.VITE_COMPANY_CODE) {
             await supabase.auth.signOut();
-            setErrorMsg(`${userData.role === 'OWNER' ? 'Owner' : 'Auditor'} login requires the valid Company Security Code.`);
+            setErrorMsg('Owner login requires the valid Company Security Code.');
+            setIsLoading(false);
+            return;
+          }
+          if (userData.role === 'AUDITOR' && companyCode !== import.meta.env.VITE_AUDITOR_CODE) {
+            await supabase.auth.signOut();
+            setErrorMsg('Auditor login requires the valid Auditor Security Code.');
             setIsLoading(false);
             return;
           }
