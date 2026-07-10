@@ -19,7 +19,8 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
-  Signal
+  Signal,
+  Bell
 } from 'lucide-react';
 
 import { ActiveScreen, UserRole, User as UserType, Transaction, SupervisorBalance } from './types';
@@ -66,6 +67,28 @@ export default function App() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedTxDetails, setSelectedTxDetails] = useState<Transaction | null>(null);
+
+  // Push Notification State
+  const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
+  
+  useEffect(() => {
+    if ('Notification' in window) {
+      setPushPermissionStatus(Notification.permission);
+    }
+  }, []);
+
+  const handleEnablePush = async () => {
+    if (currentUser && currentUser.id && 'Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setPushPermissionStatus(permission);
+      if (permission === 'granted') {
+        subscribeToPushNotifications(currentUser.id);
+        showToast('Push Notifications enabled!', 'SUCCESS');
+      } else {
+        showToast('Permission denied.', 'ERROR');
+      }
+    }
+  };
 
   // Time & Status bar state
   const [currentTime, setCurrentTime] = useState('10:45 AM');
@@ -1033,6 +1056,25 @@ export default function App() {
                       onRefresh={handleRefreshLedger}
                       isRefreshing={isRefreshing}
                     />
+
+                    {/* Push Notification Banner */}
+                    {pushPermissionStatus === 'default' && (
+                      <div className="bg-primary/10 border-b border-primary/20 p-3 flex items-center justify-between z-10 shadow-sm shrink-0">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                            <Bell className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight">Enable Notifications</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Get alerted for cash transfers instantly.</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button onClick={() => setPushPermissionStatus('denied')} className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 px-2 py-1">Dismiss</button>
+                          <button onClick={handleEnablePush} className="bg-primary text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm hover:bg-primary-dark transition-colors">Enable</button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Active Screen View Switch */}
                     <div className="flex-1 flex flex-col overflow-hidden relative">
