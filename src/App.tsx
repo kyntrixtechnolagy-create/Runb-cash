@@ -1118,6 +1118,17 @@ export default function App() {
                         />
                       )}
 
+                      {activeScreen === 'AUDITOR_DASHBOARD' && (
+                        <AuditorDashboardView
+                          user={currentUser}
+                          supervisors={supervisors.filter((s) => s.isActive !== false)}
+                          balances={balances}
+                          transactions={transactions}
+                          darkMode={darkMode}
+                          onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
+                        />
+                      )}
+
                       {activeScreen === 'SUPERVISOR_DASHBOARD' && (
                         <SupervisorDashboardView
                           user={currentUser}
