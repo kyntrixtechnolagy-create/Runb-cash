@@ -1127,6 +1127,10 @@ export default function App() {
                           darkMode={darkMode}
                           onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
                           onNavigate={(screen) => setActiveScreen(screen)}
+                          onViewStaffAudit={(staffId) => {
+                            setReportStaffFilter(staffId);
+                            setActiveScreen('REPORTS');
+                          }}
                         />
                       )}
 
