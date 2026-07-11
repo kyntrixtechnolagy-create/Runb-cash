@@ -64,7 +64,7 @@ export default function OwnerDashboardView({
   const [showTransferModal, setShowTransferModal] = useState(false);
   
   // Navigation State to avoid scrolling
-  const [currentTab, setCurrentTab] = useState<'HOME' | 'STAFF' | 'STAFF_DETAILS' | 'PENDING'>('HOME');
+  const [currentTab, setCurrentTab] = useState<'HOME' | 'STAFF' | 'STAFF_BALANCES' | 'STAFF_DETAILS' | 'PENDING'>('HOME');
 
   // Form states for Allocating Cash
   const [allocSupId, setAllocSupId] = useState('');
@@ -211,7 +211,7 @@ export default function OwnerDashboardView({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        onClick={() => setCurrentTab('STAFF_DETAILS')}
+        onClick={() => setCurrentTab('STAFF_BALANCES')}
         className="rounded-[20px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-4 shadow-xl shadow-brand-blue/20 relative overflow-hidden cursor-pointer shrink-0"
       >
         {/* Subtle decorative circles */}
@@ -390,7 +390,7 @@ export default function OwnerDashboardView({
                           return tx.description;
                         })()}
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">By {tx.supervisorName} • {tx.date}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5">By {tx.supervisorName} • {tx.date.split('-').reverse().join('/')}</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -578,6 +578,63 @@ export default function OwnerDashboardView({
       </div>
 
       {/* ══ ALL STAFF DETAILS TAB ══ */}
+          </div>
+        </div>
+      )}
+
+      {/* ══ STAFF BALANCES TAB ══ */}
+      {currentTab === 'STAFF_BALANCES' && (
+        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center gap-2 mb-4 shrink-0">
+            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </button>
+            <h3 className="text-lg font-bold font-display">Staff Balances</h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-20">
+            <div className={`p-4 rounded-2xl border flex items-center justify-between ${darkMode ? 'bg-teal-900/20 border-teal-800/30' : 'bg-teal-50 border-teal-100'}`}>
+              <div className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wide">Total Money With Staff</div>
+              <div className="text-lg font-bold font-mono text-teal-600 dark:text-teal-400">Rs. {supervisorRemaining.toLocaleString()}</div>
+            </div>
+
+            <div className="space-y-2.5 mt-4">
+              {supervisors.map((s) => {
+                const bal = balances.find((b) => b.supervisorId === s.id);
+                if (!bal) return null;
+                
+                return (
+                  <motion.div
+                    key={s.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={() => {
+                      setCurrentTab('STAFF_DETAILS');
+                    }}
+                    className={`p-4 rounded-2xl border transition-all-300 cursor-pointer flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
+                      }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={s.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`}
+                        alt={s.name}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-teal-500/40"
+                      />
+                      <div>
+                        <div className="text-sm font-bold">{s.name}</div>
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">{s.designation || 'Staff'}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-slate-400 mb-0.5">Holding</div>
+                      <div className="text-sm font-bold font-mono text-slate-800 dark:text-slate-100">
+                        Rs. {bal.remainingCash.toLocaleString()}
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

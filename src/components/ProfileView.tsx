@@ -17,6 +17,7 @@ import {
   LogOut,
   CheckCircle,
   EyeOff,
+  Eye,
   Edit2,
   Save,
   X
@@ -52,6 +53,25 @@ export default function ProfileView({
   const [editPhone, setEditPhone] = useState(user.phone || '');
   const [editAvatarUrl, setEditAvatarUrl] = useState(user.avatarUrl || '');
   const [isSavingInfo, setIsSavingInfo] = useState(false);
+  
+  const [showPhone, setShowPhone] = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
+
+  const maskPhone = (phone: string) => {
+    if (!phone) return 'No phone number provided';
+    if (phone.length <= 4) return phone;
+    const last4 = phone.slice(-4);
+    const masked = phone.slice(0, -4).replace(/[\d]/g, '*');
+    return masked + last4;
+  };
+
+  const maskEmail = (email: string) => {
+    if (!email) return 'No email provided';
+    const [name, domain] = email.split('@');
+    if (!domain) return email;
+    if (name.length <= 2) return `${name[0]}***@${domain}`;
+    return `${name[0]}${name[1]}***${name[name.length-1]}@${domain}`;
+  };
 
   const isOwner = user.role === 'OWNER';
   const isAuditor = user.role === 'AUDITOR';
@@ -195,11 +215,31 @@ export default function ProfileView({
           <div className="w-full mt-5 border-t border-slate-100 dark:border-slate-800/60 pt-4 space-y-2.5 text-xs text-left">
             <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
               <Mail className="w-4 h-4 text-slate-400" />
-              <span className="truncate">{user.email}</span>
+              <div className="flex items-center gap-2 flex-1">
+                <span className="truncate">{showEmail ? user.email : maskEmail(user.email)}</span>
+                {user.email && (
+                  <button 
+                    onClick={() => setShowEmail(!showEmail)} 
+                    className="text-slate-400 hover:text-slate-600 focus:outline-none shrink-0"
+                  >
+                    {showEmail ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
               <Phone className="w-4 h-4 text-slate-400" />
-              <span>{user.phone || 'No phone number provided'}</span>
+              <div className="flex items-center gap-2 flex-1">
+                <span>{showPhone ? user.phone : maskPhone(user.phone || '')}</span>
+                {user.phone && (
+                  <button 
+                    onClick={() => setShowPhone(!showPhone)} 
+                    className="text-slate-400 hover:text-slate-600 focus:outline-none"
+                  >
+                    {showPhone ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
               <ShieldAlert className="w-4 h-4 text-slate-400" />

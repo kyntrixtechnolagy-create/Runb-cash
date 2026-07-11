@@ -215,7 +215,7 @@ export default function SupervisorDashboardView({
                   <div className="text-lg font-bold font-mono text-slate-800 dark:text-slate-100">Rs. {tx.amount.toLocaleString()}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-[10px] text-slate-500">Date: {tx.date}</div>
+                  <div className="text-[10px] text-slate-500">Date: {tx.date.split('-').reverse().join('/')}</div>
                   <div className="text-[10px] text-slate-500 mt-1 max-w-[120px]">
                     {(() => {
                       try {
@@ -424,7 +424,7 @@ export default function SupervisorDashboardView({
                         } catch { return tx.description; }
                       })() : tx.description}
                     </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{tx.date}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">{tx.date.split('-').reverse().join('/')}</div>
                   </div>
                 </div>
 

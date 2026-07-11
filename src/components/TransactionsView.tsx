@@ -264,7 +264,7 @@ export default function TransactionsView({
                           } catch { return tx.description; }
                         })() : tx.description}
                       </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 font-mono">{tx.date}</div>
+                      <div className="text-[10px] text-slate-400 mt-0.5 font-mono">{tx.date.split('-').reverse().join('/')}</div>
                     </div>
                   </div>
 

@@ -56,7 +56,7 @@ export default function ReportsView({
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [supervisorDate, setSupervisorDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSupFilter, setSelectedSupFilter] = useState(initialSupFilter || 'ALL');
-  
+
   const [showMistakeForm, setShowMistakeForm] = useState(false);
   const [mistakeTxId, setMistakeTxId] = useState('');
   const [mistakeNote, setMistakeNote] = useState('');
@@ -115,6 +115,14 @@ export default function ReportsView({
     return { name: cat.name, amount: amt, color: cat.color };
   }).filter((c) => c.amount > 0);
 
+  // Group Expenses by Site (Supervisor) for Charts
+  const siteChartData = supervisors.map((sup) => {
+    const amt = reportTransactions
+      .filter((t) => t.type === 'EXPENSE' && t.status === 'APPROVED' && t.supervisorId === sup.id)
+      .reduce((sum, t) => sum + t.amount, 0);
+    return { name: sup.name, amount: amt };
+  }).filter((s) => s.amount > 0);
+
   // Group Expenses by Supervisor (Owner Only)
   const supervisorChartData = supervisors.map((sup) => {
     const amt = transactions
@@ -129,7 +137,7 @@ export default function ReportsView({
   const handleExportCSV = () => {
     // Build CSV Headers
     const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Staff Name', 'Amount ($)', 'Audit Status', 'Justification'];
-    
+
     // Build Rows
     const rows = reportTransactions.map((t) => [
       t.id,
@@ -143,7 +151,7 @@ export default function ReportsView({
     ]);
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
-    
+
     // Create blob and download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -158,20 +166,52 @@ export default function ReportsView({
 
   // Real Excel Exporter
   const handleExportExcel = () => {
-    const headers = ['Transaction ID', 'Date', 'Type', 'Category', 'Staff Name', 'Amount (Rs)', 'Audit Status', 'Justification'];
-    const rows = reportTransactions.map((t) => [
-      t.id,
-      t.date,
-      t.type,
-      t.category,
-      t.supervisorName,
-      t.amount,
-      t.status,
-      t.description
-    ]);
+    const headers = [
+      'Date',
+      'Voucher',
+      'Nature of Transaction',
+      'Narration',
+      'Site',
+      'Debit Ledger',
+      'Credit Ledger',
+      'Amount',
+      'Approval Status',
+      'Transaction ID'
+    ];
+
+    const rows = reportTransactions.map((t) => {
+      let narration = t.description;
+      if (t.category === 'STAFF_TRANSFER') {
+        try {
+          const state = JSON.parse(t.description);
+          narration = t.type === 'INCOME' ? `Received from ${t.supervisorName}` : `Transfer to ${state.receiverName}`;
+        } catch { }
+      } else if (t.category === 'Allocation') {
+        try {
+          const d = JSON.parse(t.description);
+          narration = `${d.note} ${d.paymentMethod === 'ONLINE' ? `(Online: ${d.bankName})` : '(Cash)'}`;
+        } catch { }
+      }
+
+      const debitLedger = t.type === 'EXPENSE' ? t.category : 'Cash';
+      const creditLedger = t.type === 'EXPENSE' ? 'Cash' : t.category;
+
+      return [
+        t.date,
+        '', // Voucher (left empty for manual entry)
+        t.category,
+        narration,
+        t.supervisorName,
+        debitLedger,
+        creditLedger,
+        t.amount,
+        t.status,
+        t.id
+      ];
+    });
 
     const totalBalance = totalAllocated - totalSpent;
-    rows.push(['', '', '', '', 'TOTAL BALANCE:', totalBalance, '', '']);
+    rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', totalBalance, '', '']);
 
     const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -182,10 +222,10 @@ export default function ReportsView({
   // PDF Exporter
   const handleExportPDF = () => {
     const doc = new jsPDF();
-    
+
     doc.setFontSize(16);
     doc.text(`PettyCash Report - ${reportType}`, 14, 22);
-    
+
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
 
@@ -210,7 +250,7 @@ export default function ReportsView({
       theme: 'grid',
       headStyles: { fillColor: [15, 118, 110] }, // teal-700
       styles: { fontSize: 8 },
-      didParseCell: function(cellData: any) {
+      didParseCell: function (cellData: any) {
         if (cellData.section === 'body') {
           const rowData = cellData.row.raw;
           // Red text for Expenses
@@ -234,57 +274,51 @@ export default function ReportsView({
   return (
     <div className="flex-1 overflow-y-auto no-scrollbar pb-24 p-4 space-y-5">
       {/* Report Segment Filter Tab Bar */}
-      <div className={`p-1.5 rounded-2xl border transition-all-300 flex overflow-x-auto no-scrollbar ${
-        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-      }`}>
+      <div className={`p-1.5 rounded-2xl border transition-all-300 flex overflow-x-auto no-scrollbar ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
         <button
           onClick={() => setReportType('DAILY')}
-          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
-            reportType === 'DAILY'
-              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
-              : 'text-slate-400 hover:text-slate-500'
-          }`}
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${reportType === 'DAILY'
+            ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+            : 'text-slate-400 hover:text-slate-500'
+            }`}
         >
           Daily
         </button>
         <button
           onClick={() => setReportType('WEEKLY')}
-          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
-            reportType === 'WEEKLY'
-              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
-              : 'text-slate-400 hover:text-slate-500'
-          }`}
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${reportType === 'WEEKLY'
+            ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+            : 'text-slate-400 hover:text-slate-500'
+            }`}
         >
           Weekly
         </button>
         <button
           onClick={() => setReportType('MONTHLY')}
-          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
-            reportType === 'MONTHLY'
-              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
-              : 'text-slate-400 hover:text-slate-500'
-          }`}
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${reportType === 'MONTHLY'
+            ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+            : 'text-slate-400 hover:text-slate-500'
+            }`}
         >
           Monthly
         </button>
         <button
           onClick={() => setReportType('DATE_RANGE')}
-          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
-            reportType === 'DATE_RANGE'
-              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
-              : 'text-slate-400 hover:text-slate-500'
-          }`}
+          className={`flex-1 min-w-[70px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${reportType === 'DATE_RANGE'
+            ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+            : 'text-slate-400 hover:text-slate-500'
+            }`}
         >
           Range
         </button>
         {isOwner && (
           <button
             onClick={() => setReportType('SUPERVISOR')}
-            className={`flex-1 min-w-[80px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${
-              reportType === 'SUPERVISOR'
-                ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
-                : 'text-slate-400 hover:text-slate-500'
-            }`}
+            className={`flex-1 min-w-[80px] py-2 text-center text-[11px] font-bold rounded-xl transition-all duration-300 ${reportType === 'SUPERVISOR'
+              ? 'bg-gradient-to-r from-blue-600 to-teal-500 text-white shadow'
+              : 'text-slate-400 hover:text-slate-500'
+              }`}
           >
             Staff Audits
           </button>
@@ -292,9 +326,8 @@ export default function ReportsView({
       </div>
 
       {/* Dynamic Filter Controls Card */}
-      <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${
-        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-      }`}>
+      <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
         <h3 className="text-xs font-mono tracking-widest text-slate-400 uppercase">REPORT FILTERS</h3>
 
         {reportType === 'DAILY' && (
@@ -303,7 +336,7 @@ export default function ReportsView({
             <span>Analyzing today's ledger logs ({new Date().toISOString().split('T')[0]})</span>
           </div>
         )}
-        
+
         {reportType === 'WEEKLY' && (
           <div className="flex items-center gap-2 bg-purple-500/10 text-purple-500 p-3 rounded-2xl border border-purple-500/10 text-xs">
             <Calendar className="w-4.5 h-4.5 text-purple-500" />
@@ -326,9 +359,8 @@ export default function ReportsView({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className={`w-full p-2 text-xs rounded-xl border outline-none ${
-                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                }`}
+                className={`w-full p-2 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
               />
             </div>
             <div className="space-y-1.5">
@@ -337,9 +369,8 @@ export default function ReportsView({
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className={`w-full p-2 text-xs rounded-xl border outline-none ${
-                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                }`}
+                className={`w-full p-2 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
               />
             </div>
           </div>
@@ -352,9 +383,8 @@ export default function ReportsView({
               <select
                 value={selectedSupFilter}
                 onChange={(e) => setSelectedSupFilter(e.target.value)}
-                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
-                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                }`}
+                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
               >
                 <option value="ALL">All Supervisors comparative view</option>
                 {supervisors.map((s) => (
@@ -364,16 +394,15 @@ export default function ReportsView({
                 ))}
               </select>
             </div>
-            
+
             <div className="space-y-1.5">
               <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">Audit Date</span>
               <input
                 type="date"
                 value={supervisorDate}
                 onChange={(e) => setSupervisorDate(e.target.value)}
-                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
-                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                }`}
+                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
               />
             </div>
           </div>
@@ -388,7 +417,7 @@ export default function ReportsView({
           >
             <span>CSV</span>
           </button>
-          
+
           <button
             onClick={handleExportExcel}
             disabled={reportTransactions.length === 0}
@@ -409,17 +438,15 @@ export default function ReportsView({
 
       {/* Aggregate metrics */}
       <div className="grid grid-cols-2 gap-3">
-        <div className={`p-4 rounded-2xl border transition-all-300 ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div className={`p-4 rounded-2xl border transition-all-300 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
           <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Filtered Expenditures</span>
           <div className="text-xl font-bold font-mono text-red-500 mt-1">Rs. {totalSpent.toLocaleString()}</div>
           <span className="text-[9px] text-slate-400 mt-1 block">Approved cash outflows</span>
         </div>
 
-        <div className={`p-4 rounded-2xl border transition-all-300 ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div className={`p-4 rounded-2xl border transition-all-300 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
           <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Average Ticket</span>
           <div className="text-xl font-bold font-mono text-slate-800 dark:text-slate-100 mt-1">Rs. {averageTicket.toLocaleString()}</div>
           <span className="text-[9px] text-slate-400 mt-1 block">Per recorded expense item</span>
@@ -428,9 +455,8 @@ export default function ReportsView({
 
       {/* Category Expenses Breakdown chart */}
       {categoryChartData.length > 0 && (
-        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
           <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Category Allocation Chart</h4>
 
           {/* Simple custom visual horizontal bar indicators */}
@@ -462,11 +488,44 @@ export default function ReportsView({
         </div>
       )}
 
+      {/* Site Allocation Chart */}
+      {siteChartData.length > 0 && (
+        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
+          <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Site Allocation Chart</h4>
+
+          <div className="space-y-3">
+            {siteChartData.map((site, idx) => {
+              const pct = Math.round((site.amount / totalSpent) * 100);
+
+              return (
+                <div key={idx} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span>{site.name}</span>
+                    </span>
+                    <span className="font-mono text-slate-500">
+                      Rs. {site.amount.toLocaleString()} ({pct}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${pct}%` }}
+                      className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Supervisor comparative chart (Owner view comparing budgets) */}
       {isOwner && reportType === 'SUPERVISOR' && selectedSupFilter === 'ALL' && (
-        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${
-          darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-        }`}>
+        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
           <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Supervisor Cumulative Spend</h4>
 
           <div className="space-y-3">
@@ -510,9 +569,8 @@ export default function ReportsView({
             {reportTransactions.map((t) => (
               <div
                 key={t.id}
-                className={`p-3 rounded-2xl border text-xs flex items-center justify-between ${
-                  darkMode ? 'bg-slate-900/55 border-slate-800/60' : 'bg-white border-slate-100'
-                }`}
+                className={`p-3 rounded-2xl border text-xs flex items-center justify-between ${darkMode ? 'bg-slate-900/55 border-slate-800/60' : 'bg-white border-slate-100'
+                  }`}
               >
                 <div>
                   <div className="font-bold font-mono text-[10px] text-slate-400 flex items-center gap-1.5 uppercase">
@@ -539,12 +597,11 @@ export default function ReportsView({
                       } catch { return t.description; }
                     })() : t.description}
                   </div>
-                  <div className="text-[9px] text-slate-400 mt-0.5">{t.date}</div>
+                  <div className="text-[9px] text-slate-400 mt-0.5">{t.date.split('-').reverse().join('/')}</div>
                 </div>
                 <div className="text-right">
-                  <span className={`font-bold font-mono text-xs block ${
-                    t.type === 'INCOME' ? 'text-emerald-500' : 'text-red-500'
-                  }`}>
+                  <span className={`font-bold font-mono text-xs block ${t.type === 'INCOME' ? 'text-emerald-500' : 'text-red-500'
+                    }`}>
                     {t.type === 'INCOME' ? '+' : '-'}Rs. {t.amount}
                   </span>
                   <span className="text-[9px] text-slate-400 block font-mono mt-0.5">{t.status}</span>
@@ -561,11 +618,10 @@ export default function ReportsView({
           <div className="flex gap-3">
             <button
               onClick={() => setShowMistakeForm(!showMistakeForm)}
-              className={`flex-1 h-12 rounded-xl font-bold text-xs ${
-                showMistakeForm 
-                  ? 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200' 
-                  : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
-              } transition-all duration-300`}
+              className={`flex-1 h-12 rounded-xl font-bold text-xs ${showMistakeForm
+                ? 'bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
+                : 'bg-rose-100 text-rose-600 dark:bg-rose-500/10 dark:text-rose-500'
+                } transition-all duration-300`}
             >
               {showMistakeForm ? 'Cancel Mistake' : 'Mistake'}
             </button>
@@ -584,25 +640,23 @@ export default function ReportsView({
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`p-4 rounded-2xl border space-y-3 ${
-                darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-              }`}
+              className={`p-4 rounded-2xl border space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+                }`}
             >
               <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100">Flag an Expense</h4>
-              
+
               <div className="space-y-1.5">
                 <label className="text-[10px] font-semibold text-slate-400 uppercase">Select Expense</label>
                 <select
                   value={mistakeTxId}
                   onChange={(e) => setMistakeTxId(e.target.value)}
-                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                  }`}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
                 >
                   <option value="" disabled>Choose transaction...</option>
                   {reportTransactions.filter(t => t.type === 'EXPENSE').map(t => (
                     <option key={t.id} value={t.id}>
-                      ${t.amount} - {t.category} ({t.date})
+                      ${t.amount} - {t.category} ({t.date.split('-').reverse().join('/')})
                     </option>
                   ))}
                 </select>
@@ -615,9 +669,8 @@ export default function ReportsView({
                   placeholder="What needs to be corrected?"
                   value={mistakeNote}
                   onChange={(e) => setMistakeNote(e.target.value)}
-                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${
-                    darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                  }`}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
                 />
               </div>
 

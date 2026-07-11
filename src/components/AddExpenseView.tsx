@@ -87,6 +87,19 @@ export default function AddExpenseView({
     }
   };
 
+  const lastSubmission = useRef<{ amount: number; description: string; time: number } | null>(null);
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [pendingSubmission, setPendingSubmission] = useState<any>(null);
+
+  const submitExpense = (data: any) => {
+    lastSubmission.current = {
+      amount: data.amount,
+      description: data.description,
+      time: Date.now()
+    };
+    onSaveExpense(data);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = Number(amount);
@@ -106,7 +119,26 @@ export default function AddExpenseView({
       ? `[${siteName}] ${description.trim()}` 
       : `Spent on ${selectedCategory} at ${siteName}`;
 
-    onSaveExpense({
+    // Check for duplicate
+    const now = Date.now();
+    if (
+      lastSubmission.current &&
+      lastSubmission.current.amount === parsedAmount &&
+      lastSubmission.current.description === finalDescription &&
+      now - lastSubmission.current.time < 60000 // 60 seconds
+    ) {
+      setPendingSubmission({
+        amount: parsedAmount,
+        category: selectedCategory,
+        description: finalDescription,
+        date,
+        receiptUrl: receiptUrl || undefined
+      });
+      setShowDuplicateWarning(true);
+      return;
+    }
+
+    submitExpense({
       amount: parsedAmount,
       category: selectedCategory,
       description: finalDescription,
@@ -487,6 +519,57 @@ export default function AddExpenseView({
           <span>Submit for Review</span>
         </button>
       </form>
+
+      {/* Duplicate Warning Modal */}
+      {showDuplicateWarning && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl ${
+              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'
+            }`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold font-display">Duplicate Entry Detected</h3>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Submitted less than a minute ago</p>
+              </div>
+            </div>
+            
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-medium mb-5">
+              This looks like a duplicate entry. Are you sure you want to add it?
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDuplicateWarning(false);
+                  setPendingSubmission(null);
+                }}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs border ${
+                  darkMode ? 'border-slate-800 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                } transition-colors`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  submitExpense(pendingSubmission);
+                  setShowDuplicateWarning(false);
+                  setPendingSubmission(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white font-bold text-xs hover:bg-amber-600 shadow-lg shadow-amber-500/20 active:scale-95 transition-all"
+              >
+                Yes, Add It
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
