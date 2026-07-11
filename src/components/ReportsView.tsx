@@ -164,56 +164,111 @@ export default function ReportsView({
     document.body.removeChild(link);
   };
 
+  const generateLedgerRow = (t: any) => {
+    let voucher = '';
+    let nature = '';
+    let narration = t.description;
+    let site = t.supervisorName;
+    let debit = '';
+    let credit = '';
+
+    if (t.category === 'Allocation') {
+      voucher = 'Contra';
+      nature = 'Inter company transfer - owner to Staff';
+      debit = `${t.supervisorName} Cash`;
+      site = 'Site Provided by the owner';
+      try {
+        const d = JSON.parse(t.description);
+        narration = d.note || 'Allocation';
+        credit = d.paymentMethod === 'ONLINE' ? d.bankName : 'Owner Cash';
+      } catch {
+        credit = 'Owner Cash';
+      }
+    } else if (t.category === 'STAFF_TRANSFER') {
+      voucher = 'Contra';
+      nature = 'Inter company transfer - Staff to Staff';
+      site = 'Site Provided by the staff';
+      try {
+        const state = JSON.parse(t.description);
+        narration = state.note || 'Transfer';
+        if (t.type === 'INCOME') {
+          debit = `${t.supervisorName} Cash`;
+          credit = `${state.senderName} Cash`;
+        } else {
+          debit = `${state.receiverName} Cash`;
+          credit = `${t.supervisorName} Cash`;
+        }
+      } catch {
+        debit = 'Receiver Cash';
+        credit = 'Sender Cash';
+      }
+    } else if (t.type === 'RETURN') {
+      voucher = 'Contra';
+      nature = 'Inter company transfer - Staff to owner';
+      debit = 'Owner Cash/Bank';
+      credit = `${t.supervisorName} Cash`;
+      site = 'Site Provided by the staff';
+    } else if (t.type === 'EXPENSE') {
+      voucher = 'Payment';
+      nature = 'Expense claim by Staff';
+      debit = t.category;
+      credit = `${t.supervisorName} Cash`;
+
+      // Extract site name from description if present
+      const bracketMatch = t.description.match(/^\[(.*?)\]\s*(.*)$/);
+      if (bracketMatch) {
+        site = bracketMatch[1];
+        narration = bracketMatch[2];
+      } else {
+        const spentMatch = t.description.match(/Spent on .* at (.*)$/);
+        if (spentMatch) {
+          site = spentMatch[1];
+        }
+      }
+    } else if (t.type === 'INCOME') {
+      voucher = 'Receipt';
+      nature = 'Receipt from person outside the entity';
+      debit = `${t.supervisorName} Cash`;
+      credit = t.category || 'External Source';
+      site = 'Site Provided by the staff';
+    }
+
+    const formattedDate = t.date.split('-').reverse().join('/');
+
+    return [
+      formattedDate,
+      voucher,
+      nature,
+      narration,
+      site,
+      debit,
+      credit,
+      t.amount,
+      t.status,
+      t.id
+    ];
+  };
+
+  const ledgerHeaders = [
+    'Date',
+    'Voucher',
+    'Nature of Transaction',
+    'Narration',
+    'Site',
+    'Debit Ledger',
+    'Credit Ledger',
+    'Amount',
+    'Approval Status',
+    'Transaction ID'
+  ];
+
   // Real Excel Exporter
   const handleExportExcel = () => {
-    const headers = [
-      'Date',
-      'Voucher',
-      'Nature of Transaction',
-      'Narration',
-      'Site',
-      'Debit Ledger',
-      'Credit Ledger',
-      'Amount',
-      'Approval Status',
-      'Transaction ID'
-    ];
-
-    const rows = reportTransactions.map((t) => {
-      let narration = t.description;
-      if (t.category === 'STAFF_TRANSFER') {
-        try {
-          const state = JSON.parse(t.description);
-          narration = t.type === 'INCOME' ? `Received from ${t.supervisorName}` : `Transfer to ${state.receiverName}`;
-        } catch { }
-      } else if (t.category === 'Allocation') {
-        try {
-          const d = JSON.parse(t.description);
-          narration = `${d.note} ${d.paymentMethod === 'ONLINE' ? `(Online: ${d.bankName})` : '(Cash)'}`;
-        } catch { }
-      }
-
-      const debitLedger = t.type === 'EXPENSE' ? t.category : 'Cash';
-      const creditLedger = t.type === 'EXPENSE' ? 'Cash' : t.category;
-
-      return [
-        t.date,
-        '', // Voucher (left empty for manual entry)
-        t.category,
-        narration,
-        t.supervisorName,
-        debitLedger,
-        creditLedger,
-        t.amount,
-        t.status,
-        t.id
-      ];
-    });
-
+    const rows = reportTransactions.map(generateLedgerRow);
     const totalBalance = totalAllocated - totalSpent;
     rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', totalBalance, '', '']);
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const worksheet = XLSX.utils.aoa_to_sheet([ledgerHeaders, ...rows]);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Report");
     XLSX.writeFile(workbook, `PettyCash_Report_${reportType}_${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -229,24 +284,14 @@ export default function ReportsView({
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
 
-    const headers = [['ID', 'Date', 'Type', 'Category', 'Staff', 'Amount', 'Status']];
-    const data = reportTransactions.map((t) => [
-      t.id.slice(0, 8),
-      t.date,
-      t.type,
-      t.category,
-      t.supervisorName,
-      `Rs. ${t.amount}`,
-      t.status
-    ]);
-
+    const rows = reportTransactions.map(generateLedgerRow);
     const totalBalance = totalAllocated - totalSpent;
-    data.push(['', '', '', '', 'TOTAL BALANCE:', `Rs. ${totalBalance}`, '']);
+    rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', totalBalance, '', '']);
 
     autoTable(doc, {
       startY: 35,
-      head: headers,
-      body: data,
+      head: [ledgerHeaders],
+      body: rows,
       theme: 'grid',
       headStyles: { fillColor: [15, 118, 110] }, // teal-700
       styles: { fontSize: 8 },

@@ -45,9 +45,9 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
           .select('*')
           .eq('id', data.user.id)
           .single();
-        
+
         if (dbError) throw dbError;
-        
+
         if (userData) {
           if (userData.role === 'OWNER' && companyCode !== import.meta.env.VITE_COMPANY_CODE) {
             await supabase.auth.signOut();
@@ -72,9 +72,8 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
   };
 
   return (
-    <div className={`absolute inset-0 flex flex-col p-6 overflow-y-auto no-scrollbar transition-colors duration-300 ${
-      darkMode ? 'text-slate-100' : 'text-slate-900'
-    }`} style={{ background: darkMode ? '#0B1C2C' : '#F0FDF4' }}>
+    <div className={`absolute inset-0 flex flex-col p-6 overflow-y-auto no-scrollbar transition-colors duration-300 ${darkMode ? 'text-slate-100' : 'text-slate-900'
+      }`} style={{ background: darkMode ? '#0B1C2C' : '#F0FDF4' }}>
       {/* Top green glow accent */}
       <div className="absolute top-0 left-0 right-0 h-52 pointer-events-none" style={{ background: 'linear-gradient(180deg, rgba(34,197,94,0.08) 0%, transparent 100%)' }} />
 
@@ -96,9 +95,8 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className={`w-full rounded-3xl p-5 border shadow-xl z-10 ${
-          darkMode ? 'bg-[#0f2318]/80 border-green-900/30' : 'bg-white border-green-100'
-        }`}
+        className={`w-full rounded-3xl p-5 border shadow-xl z-10 ${darkMode ? 'bg-[#0f2318]/80 border-green-900/30' : 'bg-white border-green-100'
+          }`}
       >
         <h3 className="text-lg font-semibold mb-1">Enter Your Account</h3>
         <p className="text-xs text-slate-500 mb-5">Please type your email and secret password below:</p>
@@ -125,11 +123,10 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
-                className={`w-full py-2.5 pl-10 pr-4 text-sm rounded-xl border outline-none transition-all-300 ${
-                  darkMode
-                    ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500'
-                    : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
-                }`}
+                className={`w-full py-2.5 pl-10 pr-4 text-sm rounded-xl border outline-none transition-all-300 ${darkMode
+                  ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500'
+                  : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
+                  }`}
               />
             </div>
           </div>
@@ -145,11 +142,10 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
-                className={`w-full py-2.5 pl-10 pr-12 text-sm rounded-xl border outline-none transition-all-300 ${
-                  darkMode
-                    ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500'
-                    : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
-                }`}
+                className={`w-full py-2.5 pl-10 pr-12 text-sm rounded-xl border outline-none transition-all-300 ${darkMode
+                  ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500'
+                  : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
+                  }`}
               />
               <button
                 type="button"
@@ -172,11 +168,10 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
                 value={companyCode}
                 onChange={(e) => setCompanyCode(e.target.value)}
                 disabled={isLoading}
-                className={`w-full py-2.5 pl-10 pr-4 text-sm rounded-xl border outline-none transition-all-300 ${
-                  darkMode
-                    ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500'
-                    : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
-                }`}
+                className={`w-full py-2.5 pl-10 pr-4 text-sm rounded-xl border outline-none transition-all-300 ${darkMode
+                  ? 'bg-slate-950 border-slate-800 text-white focus:border-blue-500'
+                  : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500'
+                  }`}
               />
             </div>
           </div>
@@ -186,13 +181,12 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
             <label className="flex items-center gap-2 cursor-pointer group">
               <div
                 onClick={() => setRememberMe(!rememberMe)}
-                className={`w-4.5 h-4.5 rounded border flex items-center justify-center transition-all-300 ${
-                  rememberMe
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : darkMode
+                className={`w-4.5 h-4.5 rounded border flex items-center justify-center transition-all-300 ${rememberMe
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : darkMode
                     ? 'border-slate-800 bg-slate-950'
                     : 'border-slate-300 bg-white'
-                }`}
+                  }`}
               >
                 {rememberMe && <Check className="w-3 h-3 stroke-[3]" />}
               </div>
