@@ -65,6 +65,7 @@ export default function OwnerDashboardView({
   
   // Navigation State to avoid scrolling
   const [currentTab, setCurrentTab] = useState<'HOME' | 'STAFF' | 'STAFF_BALANCES' | 'STAFF_DETAILS' | 'PENDING'>('HOME');
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 
   // Form states for Allocating Cash
   const [allocSupId, setAllocSupId] = useState('');
@@ -609,6 +610,7 @@ export default function OwnerDashboardView({
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     onClick={() => {
+                      setSelectedStaffId(s.id);
                       setCurrentTab('STAFF_DETAILS');
                     }}
                     className={`p-4 rounded-2xl border transition-all-300 cursor-pointer flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
@@ -639,13 +641,22 @@ export default function OwnerDashboardView({
         </div>
       )}
 
-      {currentTab === 'STAFF_DETAILS' && (
+      {currentTab === 'STAFF_DETAILS' && (() => {
+        const displayedSupervisors = selectedStaffId ? supervisors.filter(s => s.id === selectedStaffId) : supervisors;
+        return (
         <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
           <div className="flex items-center gap-2 mb-4 shrink-0">
-            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <button onClick={() => {
+              if (selectedStaffId) {
+                setSelectedStaffId(null);
+                setCurrentTab('STAFF_BALANCES');
+              } else {
+                setCurrentTab('HOME');
+              }
+            }} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
               <ChevronRight className="w-5 h-5 rotate-180" />
             </button>
-            <h3 className="text-lg font-bold font-display">All Staff Details</h3>
+            <h3 className="text-lg font-bold font-display">{selectedStaffId ? 'Staff Details' : 'All Staff Details'}</h3>
           </div>
           
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-20">
@@ -668,11 +679,11 @@ export default function OwnerDashboardView({
               </button>
             )}
             <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${darkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-500'
-              }`}>{supervisors.length} members</span>
+              }`}>{displayedSupervisors.length} members</span>
           </div>
         </div>
 
-        {supervisors.length === 0 ? (
+        {displayedSupervisors.length === 0 ? (
           <div className={`p-5 rounded-2xl border text-center ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
             }`}>
             <Users className="w-8 h-8 text-slate-300 mx-auto mb-2" />
@@ -681,7 +692,7 @@ export default function OwnerDashboardView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {supervisors.map((s) => {
+            {displayedSupervisors.map((s) => {
               const bal = balances.find((b) => b.supervisorId === s.id);
               return (
                 <motion.div
@@ -806,7 +817,7 @@ export default function OwnerDashboardView({
         )}
       </div>
         </div>
-      )}
+      );})()}
 
       {/* ══ EDIT STAFF MODAL ══ */}
       {editingStaff && (
