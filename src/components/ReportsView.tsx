@@ -115,13 +115,34 @@ export default function ReportsView({
     return { name: cat.name, amount: amt, color: cat.color };
   }).filter((c) => c.amount > 0);
 
-  // Group Expenses by Site (Supervisor) for Charts
-  const siteChartData = supervisors.map((sup) => {
+  // Group Expenses by Staff (Supervisor) for Charts
+  const staffChartData = supervisors.map((sup) => {
     const amt = reportTransactions
       .filter((t) => t.type === 'EXPENSE' && t.status === 'APPROVED' && t.supervisorId === sup.id)
       .reduce((sum, t) => sum + t.amount, 0);
     return { name: sup.name, amount: amt };
   }).filter((s) => s.amount > 0);
+
+  // Group Expenses by Site for Charts
+  const siteChartMap: Record<string, number> = {};
+  reportTransactions.forEach((t) => {
+    if (t.type === 'EXPENSE' && t.status === 'APPROVED') {
+      let site = 'Other';
+      const bracketMatch = t.description.match(/^\[(.*?)\]\s*(.*)$/);
+      if (bracketMatch) {
+        site = bracketMatch[1];
+      } else {
+        const spentMatch = t.description.match(/Spent on .* at (.*)$/);
+        if (spentMatch) {
+          site = spentMatch[1];
+        }
+      }
+      siteChartMap[site] = (siteChartMap[site] || 0) + t.amount;
+    }
+  });
+  const actualSiteChartData = Object.entries(siteChartMap)
+    .map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount);
 
   // Group Expenses by Supervisor (Owner Only)
   const supervisorChartData = supervisors.map((sup) => {
@@ -533,21 +554,55 @@ export default function ReportsView({
         </div>
       )}
 
-      {/* Site Allocation Chart */}
-      {siteChartData.length > 0 && (
+      {/* Staff Allocation Chart */}
+      {staffChartData.length > 0 && (
         <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
           }`}>
-          <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Site Allocation Chart</h4>
+          <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Staff Allocation Chart</h4>
 
           <div className="space-y-3">
-            {siteChartData.map((site, idx) => {
-              const pct = Math.round((site.amount / totalSpent) * 100);
+            {staffChartData.map((staff, idx) => {
+              const pct = Math.round((staff.amount / totalSpent) * 100);
 
               return (
                 <div key={idx} className="space-y-1">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-purple-500" />
+                      <span>{staff.name}</span>
+                    </span>
+                    <span className="font-mono text-slate-500">
+                      Rs. {staff.amount.toLocaleString()} ({pct}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${pct}%` }}
+                      className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Site Allocation Chart */}
+      {actualSiteChartData.length > 0 && (
+        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
+          <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Site Allocation Chart</h4>
+
+          <div className="space-y-3">
+            {actualSiteChartData.map((site, idx) => {
+              const pct = Math.round((site.amount / totalSpent) * 100);
+
+              return (
+                <div key={idx} className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
                       <span>{site.name}</span>
                     </span>
                     <span className="font-mono text-slate-500">
@@ -557,7 +612,7 @@ export default function ReportsView({
                   <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       style={{ width: `${pct}%` }}
-                      className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
+                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
                     />
                   </div>
                 </div>

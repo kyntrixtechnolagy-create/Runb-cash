@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -36,7 +36,7 @@ export default function SplashView({ onComplete }: SplashViewProps) {
           className="w-28 h-28 rounded-3xl flex items-center justify-center mb-6"
           style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}
         >
-          <img src={runbLogo} alt="Runb" className="w-20 h-20 object-contain" />
+          <img src={runbLogo} alt="RunB" className="w-20 h-20 object-contain" />
         </motion.div>
 
         <motion.h1
@@ -46,7 +46,7 @@ export default function SplashView({ onComplete }: SplashViewProps) {
           className="text-5xl font-display font-bold tracking-tight mb-2"
           style={{ background: 'linear-gradient(135deg, #4ADE80, #22C55E, #16A34A)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
         >
-          Runb
+          RunB
         </motion.h1>
 
         <motion.p

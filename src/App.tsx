@@ -132,6 +132,51 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Hardware Back Button Handling
+  const activeScreenRef = React.useRef(activeScreen);
+  useEffect(() => {
+    activeScreenRef.current = activeScreen;
+  }, [activeScreen]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const currentScreen = activeScreenRef.current;
+      const isDashboard = 
+        currentScreen === 'OWNER_DASHBOARD' || 
+        currentScreen === 'SUPERVISOR_DASHBOARD' || 
+        currentScreen === 'AUDITOR_DASHBOARD' ||
+        currentScreen === 'SPLASH' ||
+        currentScreen === 'LOGIN' ||
+        currentScreen === 'SIGNUP';
+
+      if (!isDashboard && currentUser) {
+        // We pressed back while on a sub-screen. Return to dashboard instead of closing app.
+        const role = currentUser.role;
+        setActiveScreen(role === 'OWNER' ? 'OWNER_DASHBOARD' : role === 'AUDITOR' ? 'AUDITOR_DASHBOARD' : 'SUPERVISOR_DASHBOARD');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentUser]);
+
+  const prevScreenRef = React.useRef(activeScreen);
+  useEffect(() => {
+    const prev = prevScreenRef.current;
+    const curr = activeScreen;
+    
+    const isPrevDashboard = prev === 'OWNER_DASHBOARD' || prev === 'SUPERVISOR_DASHBOARD' || prev === 'AUDITOR_DASHBOARD';
+    const isCurrDashboard = curr === 'OWNER_DASHBOARD' || curr === 'SUPERVISOR_DASHBOARD' || curr === 'AUDITOR_DASHBOARD';
+
+    // When navigating from a dashboard to a sub-screen, push a state to history
+    // so that the hardware back button will fire a popstate event instead of closing the app.
+    if (isPrevDashboard && !isCurrDashboard) {
+      window.history.pushState({ subScreen: true }, '', '');
+    }
+    
+    prevScreenRef.current = curr;
+  }, [activeScreen]);
+
   // Fetch real data from Supabase
   const loadDatabase = async (userId: string) => {
     try {
@@ -1016,7 +1061,7 @@ export default function App() {
             {/* Dynamic Island Screen Camera Notch */}
             <div className="hidden lg:flex lg:absolute top-2.5 left-1/2 -translate-x-1/2 w-28 h-5 bg-slate-950 dark:bg-slate-900/90 rounded-full z-50 items-center justify-center border border-white/5 shadow-inner">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500/80 mr-2 shadow-sm" />
-              <div className="text-[7.5px] text-teal-400 font-bold uppercase">Runb</div>
+              <div className="text-[7.5px] text-teal-400 font-bold uppercase">RunB</div>
             </div>
 
             {/* Mobile Status Bar (Simulated Battery, WiFi, Cellular Signal, and Time) */}

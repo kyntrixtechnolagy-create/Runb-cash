@@ -226,11 +226,61 @@ export default function AddExpenseView({
         {/* Horizontal Category Tap Selector */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">What category does this fit?</span>
-            <span className="text-[10px] text-teal-500 font-bold">Category Add option below</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Nature of expense or expenditure</span>
           </div>
 
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 items-center">
+            {!showNewCategoryForm ? (
+              <button
+                type="button"
+                onClick={() => setShowNewCategoryForm(true)}
+                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed shrink-0 ${
+                  darkMode
+                    ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
+                    : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Custom</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-full px-2 py-1 shrink-0 border border-slate-200 dark:border-slate-800">
+                <input
+                  type="text"
+                  placeholder="Category name..."
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  onBlur={() => {
+                    const trimmed = newCategoryName.trim();
+                    if (trimmed) {
+                      if (!categoriesList.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
+                        const newCat = {
+                          name: trimmed,
+                          icon: 'Tag',
+                          color: 'bg-teal-100 text-teal-600 border-teal-200'
+                        };
+                        setCategoriesList([...categoriesList, newCat]);
+                        setSelectedCategory(trimmed);
+                      } else {
+                        setSelectedCategory(categoriesList.find(c => c.name.toLowerCase() === trimmed.toLowerCase())?.name || trimmed);
+                      }
+                      setNewCategoryName('');
+                    }
+                    setShowNewCategoryForm(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="bg-transparent text-xs font-bold px-1 py-0.5 outline-none w-24 text-slate-800 dark:text-white"
+                  maxLength={15}
+                  autoFocus
+                />
+              </div>
+            )}
+
             {categoriesList.map((cat) => {
               const isSelected = selectedCategory === cat.name;
               return (
@@ -250,12 +300,21 @@ export default function AddExpenseView({
                 </button>
               );
             })}
+          </div>
+        </div>
 
-            {!showNewCategoryForm ? (
+        {/* Horizontal Site Name Tap Selector */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Which site is this for?</span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 items-center">
+            {!showNewSiteForm ? (
               <button
                 type="button"
-                onClick={() => setShowNewCategoryForm(true)}
-                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed ${
+                onClick={() => setShowNewSiteForm(true)}
+                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed shrink-0 ${
                   darkMode
                     ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
                     : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
@@ -268,60 +327,36 @@ export default function AddExpenseView({
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-full px-2 py-1 shrink-0 border border-slate-200 dark:border-slate-800">
                 <input
                   type="text"
-                  placeholder="Category name..."
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  className="bg-transparent text-xs font-bold px-1 py-0.5 outline-none w-24 text-slate-800 dark:text-white"
-                  maxLength={15}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const trimmed = newCategoryName.trim();
+                  placeholder="Site name..."
+                  value={newSiteName}
+                  onChange={(e) => setNewSiteName(e.target.value)}
+                  onBlur={() => {
+                    const trimmed = newSiteName.trim();
                     if (trimmed) {
-                      if (!categoriesList.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
-                        const newCat = {
-                          name: trimmed,
-                          icon: 'Tag',
-                          color: 'bg-teal-100 text-teal-600 border-teal-200'
-                        };
-                        setCategoriesList([...categoriesList, newCat]);
-                        setSelectedCategory(trimmed);
+                      if (!sitesList.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
+                        setSitesList([...sitesList, trimmed]);
+                        setSiteName(trimmed);
                       } else {
-                        setSelectedCategory(categoriesList.find(c => c.name.toLowerCase() === trimmed.toLowerCase())?.name || trimmed);
+                        setSiteName(sitesList.find(s => s.toLowerCase() === trimmed.toLowerCase()) || trimmed);
                       }
-                      setNewCategoryName('');
-                      setShowNewCategoryForm(false);
+                      setNewSiteName('');
+                      setErrorMsg('');
+                    }
+                    setShowNewSiteForm(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.currentTarget.blur();
                     }
                   }}
-                  className="px-2 py-0.5 bg-teal-500 hover:bg-teal-600 text-white rounded-full text-[10px] font-bold"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewCategoryName('');
-                    setShowNewCategoryForm(false);
-                  }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-1"
-                >
-                  <X className="w-3 h-3" />
-                </button>
+                  className="bg-transparent text-xs font-bold px-1 py-0.5 outline-none w-24 text-slate-800 dark:text-white"
+                  maxLength={20}
+                  autoFocus
+                />
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Horizontal Site Name Tap Selector */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Which site is this for?</span>
-            <span className="text-[10px] text-teal-500 font-bold">Site Add option below</span>
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 items-center">
             {sitesList.map((site) => {
               const isSelected = siteName === site;
               return (
@@ -341,63 +376,6 @@ export default function AddExpenseView({
                 </button>
               );
             })}
-
-            {!showNewSiteForm ? (
-              <button
-                type="button"
-                onClick={() => setShowNewSiteForm(true)}
-                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed ${
-                  darkMode
-                    ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
-                    : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
-                }`}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Custom</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-full px-2 py-1 shrink-0 border border-slate-200 dark:border-slate-800">
-                <input
-                  type="text"
-                  placeholder="Site name..."
-                  value={newSiteName}
-                  onChange={(e) => setNewSiteName(e.target.value)}
-                  className="bg-transparent text-xs font-bold px-1 py-0.5 outline-none w-24 text-slate-800 dark:text-white"
-                  maxLength={20}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const trimmed = newSiteName.trim();
-                    if (trimmed) {
-                      if (!sitesList.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
-                        setSitesList([...sitesList, trimmed]);
-                        setSiteName(trimmed);
-                      } else {
-                        setSiteName(sitesList.find(s => s.toLowerCase() === trimmed.toLowerCase()) || trimmed);
-                      }
-                      setNewSiteName('');
-                      setShowNewSiteForm(false);
-                      setErrorMsg('');
-                    }
-                  }}
-                  className="px-2 py-0.5 bg-teal-500 hover:bg-teal-600 text-white rounded-full text-[10px] font-bold"
-                >
-                  Add
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewSiteName('');
-                    setShowNewSiteForm(false);
-                  }}
-                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-1"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            )}
           </div>
         </div>
 

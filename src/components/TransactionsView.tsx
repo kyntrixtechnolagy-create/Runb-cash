@@ -141,7 +141,7 @@ export default function TransactionsView({
         <div className="grid grid-cols-2 gap-2">
           {/* Status Dropdown */}
           <div className="space-y-1">
-            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Audit Status</span>
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Status</span>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
@@ -206,7 +206,7 @@ export default function TransactionsView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {filteredTx.map((tx) => {
+            {filteredTx.slice().reverse().map((tx) => {
               const isIncome = tx.type === 'INCOME';
               const isReturn = tx.type === 'RETURN';
 
@@ -352,7 +352,7 @@ export default function TransactionsView({
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-bold font-display mb-1">Transaction Receipt Audit</h3>
+            <h3 className="text-lg font-bold font-display mb-1">Transaction Receipt</h3>
             <p className="text-xs text-slate-400 mb-5">Verifying transaction fields and digital receipt upload</p>
 
             {/* Receipt details */}
@@ -371,7 +371,7 @@ export default function TransactionsView({
 
                 <div className="text-right">
                   <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
-                    Audit Status
+                    Status
                   </div>
                   <div className="mt-1">
                     {selectedTxDetails.status === 'APPROVED' && (

@@ -819,6 +819,10 @@ export default function OwnerDashboardView({
         </div>
       );})()}
 
+      <div className="absolute bottom-24 left-0 right-0 text-center opacity-60 pointer-events-none z-10">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by Avigos Technologies</p>
+      </div>
+
       {/* ══ EDIT STAFF MODAL ══ */}
       {editingStaff && (
         <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">

@@ -241,10 +241,7 @@ export default function ProfileView({
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2.5 text-slate-500 dark:text-slate-400">
-              <ShieldAlert className="w-4 h-4 text-slate-400" />
-              <span className="capitalize">{user.role.toLowerCase()} Privileges</span>
-            </div>
+
           </div>
         )}
       </div>

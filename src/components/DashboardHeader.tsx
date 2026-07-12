@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -36,9 +36,9 @@ export default function DashboardHeader({
 
       {/* Left — Logo + App name */}
       <div className="flex items-center gap-2.5">
-        <img src={runbLogo} alt="Runb" className="w-8 h-8 object-contain" />
+        <img src={runbLogo} alt="RunB" className="w-8 h-8 object-contain" />
         <div>
-          <div className="text-base font-display font-bold leading-none tracking-tight text-green-500">Runb</div>
+          <div className="text-base font-display font-bold leading-none tracking-tight text-green-500">RunB</div>
           <div className="text-[9px] text-slate-400 font-medium leading-none mt-0.5 uppercase tracking-wider">Your Daily Cash Companion</div>
         </div>
       </div>

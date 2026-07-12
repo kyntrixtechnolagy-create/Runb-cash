@@ -279,6 +279,10 @@ export default function AuditorDashboardView({
           </motion.div>
         </div>
       )}
+
+      <div className="text-center py-6 pb-2 opacity-60">
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by Avigos Technologies</p>
+      </div>
     </div>
   );
 }
