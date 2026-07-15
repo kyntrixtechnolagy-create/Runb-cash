@@ -416,7 +416,7 @@ export default function TransactionsView({
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
                   <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">Logged Date</span>
-                  <span className="font-bold mt-1 block">{selectedTxDetails.date}</span>
+                  <span className="font-bold mt-1 block">{selectedTxDetails.date.split('-').reverse().join('/')}</span>
                 </div>
               </div>
 

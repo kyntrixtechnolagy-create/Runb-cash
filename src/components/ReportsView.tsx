@@ -303,7 +303,7 @@ export default function ReportsView({
     doc.text(`PettyCash Report - ${reportType}`, 14, 22);
 
     doc.setFontSize(10);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Generated on: ${new Date().toLocaleDateString('en-GB')}`, 14, 30);
 
     const rows = reportTransactions.map(generateLedgerRow);
     const totalBalance = totalAllocated - totalSpent;
@@ -399,7 +399,7 @@ export default function ReportsView({
         {reportType === 'DAILY' && (
           <div className="flex items-center gap-2 bg-blue-500/10 text-blue-500 p-3 rounded-2xl border border-blue-500/10 text-xs">
             <Calendar className="w-4.5 h-4.5 text-blue-500" />
-            <span>Analyzing today's ledger logs ({new Date().toISOString().split('T')[0]})</span>
+            <span>Analyzing today's ledger logs ({new Date().toISOString().split('T')[0].split('-').reverse().join('/')})</span>
           </div>
         )}
 

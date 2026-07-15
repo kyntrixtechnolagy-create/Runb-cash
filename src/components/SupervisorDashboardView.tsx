@@ -217,9 +217,8 @@ export default function SupervisorDashboardView({
           </div>
 
           {/* Daily Cash Flow Summary */}
-          <div className={`p-4 rounded-3xl border transition-all-300 space-y-3 mt-4 ${
-            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-          }`}>
+          <div className={`p-4 rounded-3xl border transition-all-300 space-y-3 mt-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+            }`}>
             <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Daily Cash Flow Summary</h4>
             <div className="space-y-2 text-xs font-bold text-slate-600 dark:text-slate-300">
               <div className="flex justify-between items-center py-1 border-b border-dashed border-slate-200 dark:border-slate-800">
