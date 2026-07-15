@@ -38,6 +38,7 @@ interface SupervisorDashboardViewProps {
   onDeclineTransfer?: (txId: string, userId: string) => void;
   onApproveAllocation?: (txId: string) => void;
   onRerequestAllocation?: (txId: string, note: string) => void;
+  onViewLedgerClick?: () => void;
 }
 
 export default function SupervisorDashboardView({
@@ -55,7 +56,8 @@ export default function SupervisorDashboardView({
   onApproveTransfer,
   onDeclineTransfer,
   onApproveAllocation,
-  onRerequestAllocation
+  onRerequestAllocation,
+  onViewLedgerClick
 }: SupervisorDashboardViewProps) {
   const [currentTab, setCurrentTab] = useState<'HOME' | 'PURCHASES'>('HOME');
   const [rerequestNote, setRerequestNote] = useState<{ [key: string]: string }>({});
@@ -70,6 +72,8 @@ export default function SupervisorDashboardView({
 
   // Expenses spent by this supervisor today (or overall approved spent)
   const todayStr = new Date().toISOString().split('T')[0];
+  const [cfStartDate, setCfStartDate] = useState(todayStr);
+  const [cfEndDate, setCfEndDate] = useState(todayStr);
   const expensesToday = myTransactions
     .filter((t) => t.type === 'EXPENSE' && t.date === todayStr && t.status === 'APPROVED')
     .reduce((sum, t) => sum + t.amount, 0);
@@ -83,19 +87,29 @@ export default function SupervisorDashboardView({
     .filter((t) => t.type === 'EXPENSE' && t.status === 'PENDING')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  // Daily Cash Flow Summary Metrics
-  const todayIncomeTransactions = myTransactions.filter(t => t.type === 'INCOME' && t.date === todayStr && t.status === 'APPROVED');
-  const companyReceiptsToday = todayIncomeTransactions
+  // Cash Flow Summary Metrics (Filtered by date range)
+  const cfIncomeTransactions = myTransactions.filter(t => t.type === 'INCOME' && t.date >= cfStartDate && t.date <= cfEndDate && t.status === 'APPROVED');
+  const companyReceiptsFiltered = cfIncomeTransactions
     .filter(t => t.category === 'Allocation')
     .reduce((sum, t) => sum + t.amount, 0);
-  const customerReceiptsToday = todayIncomeTransactions
+  const customerReceiptsFiltered = cfIncomeTransactions
     .filter(t => t.category !== 'Allocation')
     .reduce((sum, t) => sum + t.amount, 0);
-  const returnsToday = myTransactions
-    .filter(t => t.type === 'RETURN' && t.date === todayStr && t.status === 'APPROVED')
+  const expensesFiltered = myTransactions
+    .filter(t => t.type === 'EXPENSE' && t.date >= cfStartDate && t.date <= cfEndDate && t.status === 'APPROVED')
     .reduce((sum, t) => sum + t.amount, 0);
-  const closingBalance = availableCash;
-  const openingBalance = closingBalance - companyReceiptsToday - customerReceiptsToday + expensesToday + returnsToday;
+  const returnsFiltered = myTransactions
+    .filter(t => t.type === 'RETURN' && t.date >= cfStartDate && t.date <= cfEndDate && t.status === 'APPROVED')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  // Calculate closing balance on cfEndDate
+  const transactionsAfterRange = myTransactions.filter(t => t.date > cfEndDate && t.status === 'APPROVED');
+  const incomeAfter = transactionsAfterRange.filter(t => t.type === 'INCOME').reduce((sum, t) => sum + t.amount, 0);
+  const expenseAfter = transactionsAfterRange.filter(t => t.type === 'EXPENSE').reduce((sum, t) => sum + t.amount, 0);
+  const returnsAfter = transactionsAfterRange.filter(t => t.type === 'RETURN').reduce((sum, t) => sum + t.amount, 0);
+
+  const closingBalance = availableCash - incomeAfter + expenseAfter + returnsAfter;
+  const openingBalance = closingBalance - companyReceiptsFiltered - customerReceiptsFiltered + expensesFiltered + returnsFiltered;
 
   // Limit alerts
   const ratioUsed = totalFundingAllocated > 0 ? (overallSpentApproved / totalFundingAllocated) * 100 : 0;
@@ -122,7 +136,8 @@ export default function SupervisorDashboardView({
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-[20px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden shrink-0"
+            onClick={onViewLedgerClick}
+            className="rounded-[20px] bg-gradient-to-r from-brand-blue to-brand-teal text-white p-5 shadow-xl shadow-brand-blue/20 relative overflow-hidden shrink-0 cursor-pointer hover:shadow-2xl transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             <div className="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full -mr-10 -mt-10" />
             <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full -ml-6 -mb-6" />
@@ -136,22 +151,22 @@ export default function SupervisorDashboardView({
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={onCollectCashClick}
+                  onClick={(e) => { e.stopPropagation(); onCollectCashClick(); }}
                   className="w-10 h-10 bg-emerald-500/20 hover:bg-emerald-500/40 backdrop-blur-md rounded-xl flex items-center justify-center border border-emerald-500/30 transition-colors cursor-pointer"
                   title="Receive Cash at Site"
                 >
                   <ArrowDownLeft className="w-5 h-5 text-emerald-100" />
                 </button>
                 <button
-                  onClick={onRequestCashClick}
+                  onClick={(e) => { e.stopPropagation(); onRequestCashClick(); }}
                   className="w-10 h-10 bg-blue-500/20 hover:bg-blue-500/40 backdrop-blur-md rounded-xl flex items-center justify-center border border-blue-500/30 transition-colors cursor-pointer"
                   title="Request Cash from Owner"
                 >
                   <Coins className="w-5 h-5 text-blue-100" />
                 </button>
                 <button
-                  onClick={onReturnCashClick}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/20 transition-colors cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); onReturnCashClick(); }}
+                  className="w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/30 transition-colors cursor-pointer"
                   title="Return Cash to Owner"
                 >
                   <Undo2 className="w-5 h-5 text-teal-100" />
@@ -216,10 +231,36 @@ export default function SupervisorDashboardView({
             </div>
           </div>
 
-          {/* Daily Cash Flow Summary */}
+          {/* Cash Flow Summary */}
           <div className={`p-4 rounded-3xl border transition-all-300 space-y-3 mt-4 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
             }`}>
-            <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">Daily Cash Flow Summary</h4>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-1">
+              <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase whitespace-nowrap">Cash Flow Summary</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                <input 
+                  type="date"
+                  value={cfStartDate}
+                  onChange={(e) => setCfStartDate(e.target.value)}
+                  className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                />
+                <span className="text-[10px] font-bold text-slate-400">to</span>
+                <input 
+                  type="date"
+                  value={cfEndDate}
+                  onChange={(e) => setCfEndDate(e.target.value)}
+                  className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                />
+                {(cfStartDate !== todayStr || cfEndDate !== todayStr) && (
+                  <button 
+                    onClick={() => { setCfStartDate(todayStr); setCfEndDate(todayStr); }}
+                    className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2 text-xs font-bold text-slate-600 dark:text-slate-300">
               <div className="flex justify-between items-center py-1 border-b border-dashed border-slate-200 dark:border-slate-800">
                 <span>Opening</span>
@@ -227,15 +268,15 @@ export default function SupervisorDashboardView({
               </div>
               <div className="flex justify-between items-center py-1 border-b border-dashed border-slate-200 dark:border-slate-800">
                 <span className="text-emerald-500">Customer Receipts</span>
-                <span className="font-mono text-emerald-500">Rs. {customerReceiptsToday.toLocaleString()}</span>
+                <span className="font-mono text-emerald-500">Rs. {customerReceiptsFiltered.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-dashed border-slate-200 dark:border-slate-800">
                 <span className="text-emerald-500">Company receipt</span>
-                <span className="font-mono text-emerald-500">Rs. {companyReceiptsToday.toLocaleString()}</span>
+                <span className="font-mono text-emerald-500">Rs. {companyReceiptsFiltered.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center py-1 border-b border-dashed border-slate-200 dark:border-slate-800">
                 <span className="text-red-500">Expenses</span>
-                <span className="font-mono text-red-500">Rs. {expensesToday.toLocaleString()}</span>
+                <span className="font-mono text-red-500">Rs. {expensesFiltered.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center py-2">
                 <span className="text-slate-800 dark:text-slate-100 uppercase tracking-wider">Closing balance</span>
@@ -389,7 +430,7 @@ export default function SupervisorDashboardView({
               }`}>
             <div>
               <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">My Recent Purchases</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">My Recent Transactions</span>
               </div>
               <div className="text-xl font-bold font-display text-blue-600 dark:text-blue-400">{myTransactions.length} items</div>
               <span className="text-[9px] text-slate-400 font-medium mt-0.5 block">Click to view all transactions</span>
@@ -412,7 +453,7 @@ export default function SupervisorDashboardView({
 
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-24">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">My Recent Purchases</h4>
+              <h4 className="text-xs font-bold tracking-wider text-slate-400 uppercase">My Recent Transactions</h4>
               <span className="text-[11px] font-semibold text-slate-400">Total items: {myTransactions.length}</span>
             </div>
 
@@ -422,7 +463,7 @@ export default function SupervisorDashboardView({
               </div>
             ) : (
               <div className="space-y-2.5">
-                {myTransactions.slice().reverse().map((tx) => (
+                {myTransactions.map((tx) => (
                   <div
                     key={tx.id}
                     onClick={() => onViewTransactionDetails(tx)}
@@ -524,19 +565,11 @@ export default function SupervisorDashboardView({
               </div>
             )}
           </div>
-          <div className="text-center py-6 pb-8 opacity-60">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by Avigos Technologies</p>
-          </div>
+
         </div>
       )}
 
-      {/* Floating Action Button (FAB) */}
-      <button
-        onClick={onAddExpenseClick}
-        className="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-tr from-brand-blue to-brand-teal text-white rounded-full flex items-center justify-center shadow-xl shadow-brand-blue/30 active:scale-90 active:rotate-90 transition-all duration-300 z-40 border border-white/10"
-      >
-        <Plus className="w-7 h-7 stroke-[3]" />
-      </button>
+
     </div>
   );
 }

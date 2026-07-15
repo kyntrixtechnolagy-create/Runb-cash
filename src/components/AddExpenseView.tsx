@@ -25,30 +25,30 @@ interface AddExpenseViewProps {
     description: string;
     date: string;
     receiptUrl?: string;
+    supplier?: string;
   }) => void;
   onCancel: () => void;
   darkMode: boolean;
   availableBalance: number;
+  categories: {name: string, icon: string, color: string}[];
+  sites: string[];
+  suppliers: string[];
 }
 
 export default function AddExpenseView({
   onSaveExpense,
   onCancel,
   darkMode,
-  availableBalance
+  availableBalance,
+  categories,
+  sites,
+  suppliers
 }: AddExpenseViewProps) {
   const [amount, setAmount] = useState('');
-  const [categoriesList, setCategoriesList] = useState(() =>
-    CATEGORIES.filter(c => c.name !== 'Allocation')
-  );
-  const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[0].name);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [showNewCategoryForm, setShowNewCategoryForm] = useState(false);
-
-  const [sitesList, setSitesList] = useState(['Common', 'Site A', 'Site B', 'Downtown Project']);
-  const [siteName, setSiteName] = useState('Common');
-  const [newSiteName, setNewSiteName] = useState('');
-  const [showNewSiteForm, setShowNewSiteForm] = useState(false);
+  const filteredCategories = categories.filter(c => c.name !== 'Allocation');
+  const [selectedCategory, setSelectedCategory] = useState(filteredCategories[0]?.name || '');
+  const [siteName, setSiteName] = useState(sites[0] || '');
+  const [supplierName, setSupplierName] = useState(suppliers[0] || '');
 
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -114,10 +114,10 @@ export default function AddExpenseView({
       return;
     }
 
-    // Prefix the site name to the description
+    // Prefix the site name and supplier to the description
     const finalDescription = description.trim() 
-      ? `[${siteName}] ${description.trim()}` 
-      : `Spent on ${selectedCategory} at ${siteName}`;
+      ? `[${siteName}] {${supplierName}} ${description.trim()}` 
+      : `Spent on ${selectedCategory} at ${siteName} from ${supplierName}`;
 
     // Check for duplicate
     const now = Date.now();
@@ -132,7 +132,8 @@ export default function AddExpenseView({
         category: selectedCategory,
         description: finalDescription,
         date,
-        receiptUrl: receiptUrl || undefined
+        receiptUrl: receiptUrl || undefined,
+        supplier: supplierName
       });
       setShowDuplicateWarning(true);
       return;
@@ -143,7 +144,8 @@ export default function AddExpenseView({
       category: selectedCategory,
       description: finalDescription,
       date,
-      receiptUrl: receiptUrl || undefined
+      receiptUrl: receiptUrl || undefined,
+      supplier: supplierName
     });
   };
 
@@ -230,58 +232,7 @@ export default function AddExpenseView({
           </div>
 
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 items-center">
-            {!showNewCategoryForm ? (
-              <button
-                type="button"
-                onClick={() => setShowNewCategoryForm(true)}
-                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed shrink-0 ${
-                  darkMode
-                    ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
-                    : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
-                }`}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Custom</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-full px-2 py-1 shrink-0 border border-slate-200 dark:border-slate-800">
-                <input
-                  type="text"
-                  placeholder="Category name..."
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  onBlur={() => {
-                    const trimmed = newCategoryName.trim();
-                    if (trimmed) {
-                      if (!categoriesList.some(c => c.name.toLowerCase() === trimmed.toLowerCase())) {
-                        const newCat = {
-                          name: trimmed,
-                          icon: 'Tag',
-                          color: 'bg-teal-100 text-teal-600 border-teal-200'
-                        };
-                        setCategoriesList([...categoriesList, newCat]);
-                        setSelectedCategory(trimmed);
-                      } else {
-                        setSelectedCategory(categoriesList.find(c => c.name.toLowerCase() === trimmed.toLowerCase())?.name || trimmed);
-                      }
-                      setNewCategoryName('');
-                    }
-                    setShowNewCategoryForm(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  className="bg-transparent text-xs font-bold px-1 py-0.5 outline-none w-24 text-slate-800 dark:text-white"
-                  maxLength={15}
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {categoriesList.map((cat) => {
+            {filteredCategories.map((cat) => {
               const isSelected = selectedCategory === cat.name;
               return (
                 <button
@@ -310,54 +261,7 @@ export default function AddExpenseView({
           </div>
 
           <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 items-center">
-            {!showNewSiteForm ? (
-              <button
-                type="button"
-                onClick={() => setShowNewSiteForm(true)}
-                className={`flex items-center gap-1 py-1.5 px-3 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 border-2 border-dashed shrink-0 ${
-                  darkMode
-                    ? 'border-slate-800 text-teal-400 hover:text-teal-300 hover:border-slate-700'
-                    : 'border-slate-200 text-teal-600 hover:bg-slate-50 hover:border-slate-300'
-                }`}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Custom</span>
-              </button>
-            ) : (
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 rounded-full px-2 py-1 shrink-0 border border-slate-200 dark:border-slate-800">
-                <input
-                  type="text"
-                  placeholder="Site name..."
-                  value={newSiteName}
-                  onChange={(e) => setNewSiteName(e.target.value)}
-                  onBlur={() => {
-                    const trimmed = newSiteName.trim();
-                    if (trimmed) {
-                      if (!sitesList.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
-                        setSitesList([...sitesList, trimmed]);
-                        setSiteName(trimmed);
-                      } else {
-                        setSiteName(sitesList.find(s => s.toLowerCase() === trimmed.toLowerCase()) || trimmed);
-                      }
-                      setNewSiteName('');
-                      setErrorMsg('');
-                    }
-                    setShowNewSiteForm(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  className="bg-transparent text-xs font-bold px-1 py-0.5 outline-none w-24 text-slate-800 dark:text-white"
-                  maxLength={20}
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {sitesList.map((site) => {
+            {sites.map((site) => {
               const isSelected = siteName === site;
               return (
                 <button
@@ -373,6 +277,35 @@ export default function AddExpenseView({
                   }`}
                 >
                   <span className="text-[12px]">{site}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Horizontal Supplier Name Tap Selector */}
+        <div className="space-y-2 mt-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Which supplier/vendor is this for?</span>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 items-center">
+            {suppliers.map((sup) => {
+              const isSelected = supplierName === sup;
+              return (
+                <button
+                  key={sup}
+                  type="button"
+                  onClick={() => setSupplierName(sup)}
+                  className={`flex items-center gap-2 py-2 px-3.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                    isSelected
+                      ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20 scale-[1.03]'
+                      : darkMode
+                      ? 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-100'
+                      : 'bg-white border border-slate-100 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="text-[12px]">{sup}</span>
                 </button>
               );
             })}

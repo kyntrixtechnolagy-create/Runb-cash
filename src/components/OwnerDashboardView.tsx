@@ -25,6 +25,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { User, SupervisorBalance, Transaction } from '../types';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface OwnerDashboardViewProps {
   user: User;
@@ -41,6 +42,10 @@ interface OwnerDashboardViewProps {
   onEditAllocation?: (txId: string, newAmount: number) => void;
   onCreateTransfer?: (senderId: string, receiverId: string, amount: number) => void;
   onViewStaffAudit?: (staffId: string) => void;
+  categories: {name: string, icon: string, color: string}[];
+  sites: string[];
+  suppliers: string[];
+  onUpdateSettings: (categories: any[], sites: string[], suppliers: string[]) => void;
 }
 
 export default function OwnerDashboardView({
@@ -57,14 +62,18 @@ export default function OwnerDashboardView({
   onRemoveStaff,
   onEditAllocation,
   onCreateTransfer,
-  onViewStaffAudit
+  onViewStaffAudit,
+  categories,
+  sites,
+  suppliers,
+  onUpdateSettings
 }: OwnerDashboardViewProps) {
   const [showAllocateModal, setShowAllocateModal] = useState(false);
   const [showAddSupModal, setShowAddSupModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   
   // Navigation State to avoid scrolling
-  const [currentTab, setCurrentTab] = useState<'HOME' | 'STAFF' | 'STAFF_BALANCES' | 'STAFF_DETAILS' | 'PENDING'>('HOME');
+  const [currentTab, setCurrentTab] = useState<'HOME' | 'STAFF' | 'STAFF_BALANCES' | 'STAFF_DETAILS' | 'PENDING' | 'SETTINGS'>('HOME');
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
 
   // Form states for Allocating Cash
@@ -97,7 +106,10 @@ export default function OwnerDashboardView({
   const [editPhone, setEditPhone] = useState('');
   const [editSpendLimit, setEditSpendLimit] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [staffDetailsDate, setStaffDetailsDate] = useState(() => {
+  const [staffDetailsStartDate, setStaffDetailsStartDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [staffDetailsEndDate, setStaffDetailsEndDate] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
 
@@ -133,6 +145,57 @@ export default function OwnerDashboardView({
   const remainingTreasury = masterTreasury;
   const supervisorRemaining = balances.reduce((sum, b) => sum + b.remainingCash, 0);
   const liveTotalLiquidValue = remainingTreasury + supervisorRemaining;
+
+  const [chartFilter, setChartFilter] = useState<'SITE' | 'STAFF' | 'CATEGORY'>('CATEGORY');
+  const [timeFilter, setTimeFilter] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL'>('ALL');
+  
+  const getChartData = () => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    const weekStr = startOfWeek.toISOString().split('T')[0];
+    const monthPrefix = todayStr.substring(0, 7);
+
+    const expenses = transactions.filter(t => {
+      if (t.type !== 'EXPENSE' || t.status !== 'APPROVED') return false;
+      if (timeFilter === 'DAILY') return t.date === todayStr;
+      if (timeFilter === 'WEEKLY') return t.date >= weekStr;
+      if (timeFilter === 'MONTHLY') return t.date.startsWith(monthPrefix);
+      return true;
+    });
+    const grouped = expenses.reduce((acc, t) => {
+      let key = 'Other';
+      if (chartFilter === 'SITE') {
+        const bracketMatch = t.description.match(/^\[(.*?)\]/);
+        if (bracketMatch) {
+          key = bracketMatch[1];
+        } else {
+          const spentMatch = t.description.match(/at\s+(.+)$/);
+          if (spentMatch) {
+            key = spentMatch[1];
+          } else {
+            key = 'Unassigned';
+          }
+        }
+      } else if (chartFilter === 'STAFF') {
+        key = t.supervisorName || 'Unknown';
+      } else {
+        key = t.category || 'Uncategorized';
+      }
+      
+      if (!acc[key]) acc[key] = 0;
+      acc[key] += t.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5
+  };
+  const chartData = getChartData();
+  const CHART_COLORS = ['#14b8a6', '#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b'];
 
   // Filter pending approvals
   const ownerPendingTransactions = transactions.filter((t) => 
@@ -207,7 +270,7 @@ export default function OwnerDashboardView({
     <div className="flex-1 overflow-hidden p-3 flex flex-col relative h-full">
       {/* ══ HOME TAB ══ */}
       {currentTab === 'HOME' && (
-        <div className="flex-1 flex flex-col space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-24">
       {/* Welcome Card & Real-time Balance */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -231,20 +294,7 @@ export default function OwnerDashboardView({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-white/15 pt-2 mt-2">
-          <div>
-            <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wide">Safe Box (Main Fund)</div>
-            <div className="text-sm font-bold font-mono text-white mt-0.5">
-              Rs. {remainingTreasury.toLocaleString()}
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold text-blue-200 uppercase tracking-wide">Money with Staff</div>
-            <div className="text-sm font-bold font-mono text-white mt-0.5">
-              Rs. {supervisorRemaining.toLocaleString()}
-            </div>
-          </div>
-        </div>
+
       </motion.div>
 
       {/* Corporate Summary Cards Grid */}
@@ -284,21 +334,85 @@ export default function OwnerDashboardView({
             <span className="text-[9px] text-slate-400 font-medium">To approve</span>
           </div>
         </div>
+      </div>
 
-        {/* Expenses Card (Full Width) */}
-        <div className={`col-span-2 p-3 rounded-[16px] border shadow-sm transition-all-300 flex items-center justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-          }`}>
-          <div>
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-[10px] font-bold text-slate-400">Total Spent</span>
-            </div>
-            <div className="text-xl font-bold font-display text-red-500">Rs. {totalSpent.toLocaleString()}</div>
-            <span className="text-[9px] text-slate-400 font-medium">Approved purchases</span>
-          </div>
-          <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded-xl">
-            <TrendingDown className="w-5 h-5 text-red-500" />
+      {/* Graphical Chart Section */}
+      <div className={`p-4 rounded-[20px] border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Expenses Breakdown</h3>
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+            <button 
+              onClick={() => setChartFilter('SITE')}
+              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'SITE' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              SITE
+            </button>
+            <button 
+              onClick={() => setChartFilter('STAFF')}
+              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'STAFF' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              STAFF
+            </button>
+            <button 
+              onClick={() => setChartFilter('CATEGORY')}
+              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'CATEGORY' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              CATEGORY
+            </button>
           </div>
         </div>
+        
+        <div className="flex items-center gap-1.5 mb-4">
+          {['ALL', 'MONTHLY', 'WEEKLY', 'DAILY'].map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeFilter(tf as any)}
+              className={`px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-full transition-all ${
+                timeFilter === tf 
+                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' 
+                  : 'bg-slate-50 text-slate-400 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-500 dark:hover:bg-slate-700'
+              }`}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
+        
+        {chartData.length > 0 ? (
+          <div className="h-36 w-full mt-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
+                  tickFormatter={(val) => `₹${val > 1000 ? (val/1000).toFixed(0)+'k' : val}`}
+                />
+                <Tooltip 
+                  cursor={{ fill: darkMode ? '#1e293b' : '#f1f5f9' }}
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: darkMode ? '#0f172a' : '#fff' }}
+                  itemStyle={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: 'bold' }}
+                  formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, 'Amount']}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="h-36 w-full flex items-center justify-center border-2 border-dashed rounded-xl border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-400 font-medium">No expenses recorded yet</p>
+          </div>
+        )}
       </div>
 
 
@@ -326,13 +440,23 @@ export default function OwnerDashboardView({
           </button>
           <button
             onClick={() => setShowTransferModal(true)}
-            className={`col-span-2 flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl border-2 font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
+            className={`flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl border-2 font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
               ? 'bg-blue-900/20 border-blue-800 hover:bg-blue-900/40 text-blue-400'
               : 'bg-blue-50 border-blue-200 hover:bg-blue-100 text-blue-600'
               }`}
           >
             <ArrowUpRight className="w-4 h-4" />
-            <span>Staff to Staff Transfer</span>
+            <span>Transfer</span>
+          </button>
+          <button
+            onClick={() => setCurrentTab('SETTINGS')}
+            className={`flex items-center justify-center gap-1.5 py-3 px-3 rounded-xl border-2 font-bold text-xs transition-all-300 active:scale-95 cursor-pointer ${darkMode
+              ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
+              : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-900'
+              }`}
+          >
+            <Edit2 className="w-4 h-4 text-slate-500" />
+            <span>Manage Lists</span>
           </button>
         </div>
       </div>
@@ -621,6 +745,7 @@ export default function OwnerDashboardView({
                         src={s.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`}
                         alt={s.name}
                         className="w-10 h-10 rounded-full object-cover border-2 border-teal-500/40"
+                        onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`; }}
                       />
                       <div>
                         <div className="text-sm font-bold">{s.name}</div>
@@ -660,19 +785,27 @@ export default function OwnerDashboardView({
           </div>
           
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pb-20">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide">Filters & Staff</h4>
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-1">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wide whitespace-nowrap">Filters & Staff</h4>
+              <div className="flex flex-wrap items-center gap-2">
             <input
               type="date"
-              value={staffDetailsDate}
-              onChange={(e) => setStaffDetailsDate(e.target.value)}
+              value={staffDetailsStartDate}
+              onChange={(e) => setStaffDetailsStartDate(e.target.value)}
               className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'
                 }`}
             />
-            {staffDetailsDate && (
+            <span className="text-[10px] font-bold text-slate-400">to</span>
+            <input
+              type="date"
+              value={staffDetailsEndDate}
+              onChange={(e) => setStaffDetailsEndDate(e.target.value)}
+              className={`p-1.5 text-[10px] font-bold rounded-lg border outline-none ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}
+            />
+            {(staffDetailsStartDate || staffDetailsEndDate) && (
               <button
-                onClick={() => setStaffDetailsDate('')}
+                onClick={() => { setStaffDetailsStartDate(''); setStaffDetailsEndDate(''); }}
                 className="text-[10px] text-slate-400 hover:text-slate-600 font-bold px-1"
               >
                 Clear
@@ -710,6 +843,7 @@ export default function OwnerDashboardView({
                         src={s.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`}
                         alt={s.name}
                         className="w-11 h-11 rounded-full object-cover border-2 border-teal-500/40 shrink-0"
+                        onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(s.name)}&background=random`; }}
                       />
                       <div className="min-w-0">
                         <div className="text-sm font-bold truncate">{s.name}</div>
@@ -745,14 +879,14 @@ export default function OwnerDashboardView({
                   {/* Balance Details (Columnar / Tabular Layout) */}
                   {bal && (
                     <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex flex-col gap-2.5">
-                      {staffDetailsDate && (
+                      {(staffDetailsStartDate || staffDetailsEndDate) && (
                         <div className="flex justify-between items-center">
                           <div className="text-[11px] font-bold text-slate-400 uppercase">Opening</div>
                           <div className="text-xs font-bold font-mono text-slate-500">
                             Rs. {(
-                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                              transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                              transactions.filter(t => t.supervisorId === s.id && (staffDetailsStartDate ? t.date < staffDetailsStartDate : false) && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && (staffDetailsStartDate ? t.date < staffDetailsStartDate : false) && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                              transactions.filter(t => t.supervisorId === s.id && (staffDetailsStartDate ? t.date < staffDetailsStartDate : false) && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             ).toLocaleString()}
                           </div>
                         </div>
@@ -761,8 +895,8 @@ export default function OwnerDashboardView({
                       <div className="flex justify-between items-center">
                         <div className="text-[11px] font-bold text-slate-400 uppercase">Given</div>
                         <div className="text-xs font-bold font-mono text-blue-500">
-                          Rs. {(staffDetailsDate
-                            ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                          Rs. {((staffDetailsStartDate || staffDetailsEndDate)
+                            ? transactions.filter(t => t.supervisorId === s.id && (!staffDetailsStartDate || t.date >= staffDetailsStartDate) && (!staffDetailsEndDate || t.date <= staffDetailsEndDate) && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : bal.allocatedCash + transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                           ).toLocaleString()}
                         </div>
@@ -771,8 +905,8 @@ export default function OwnerDashboardView({
                       <div className="flex justify-between items-center">
                         <div className="text-[11px] font-bold text-slate-400 uppercase">Spent</div>
                         <div className="text-xs font-bold font-mono text-red-500">
-                          Rs. {(staffDetailsDate
-                            ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                          Rs. {((staffDetailsStartDate || staffDetailsEndDate)
+                            ? transactions.filter(t => t.supervisorId === s.id && (!staffDetailsStartDate || t.date >= staffDetailsStartDate) && (!staffDetailsEndDate || t.date <= staffDetailsEndDate) && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : bal.spentCash
                           ).toLocaleString()}
                         </div>
@@ -781,8 +915,8 @@ export default function OwnerDashboardView({
                       <div className="flex justify-between items-center">
                         <div className="text-[11px] font-bold text-slate-400 uppercase">Returned</div>
                         <div className="text-xs font-bold font-mono text-purple-500">
-                          Rs. {(staffDetailsDate
-                            ? transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                          Rs. {((staffDetailsStartDate || staffDetailsEndDate)
+                            ? transactions.filter(t => t.supervisorId === s.id && (!staffDetailsStartDate || t.date >= staffDetailsStartDate) && (!staffDetailsEndDate || t.date <= staffDetailsEndDate) && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                             : transactions.filter(t => t.supervisorId === s.id && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
                           ).toLocaleString()}
                         </div>
@@ -790,19 +924,16 @@ export default function OwnerDashboardView({
 
                       <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-200 dark:border-slate-800">
                         <div className="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
-                          {staffDetailsDate ? 'Cur. Left' : 'Left'}
+                          {(staffDetailsStartDate || staffDetailsEndDate) ? 'Cur. Left' : 'Left'}
                         </div>
                         <div className="text-sm font-bold font-mono text-teal-500">
                           Rs. {
-                            staffDetailsDate ? (
+                            (staffDetailsStartDate || staffDetailsEndDate) ? (
                               (
-                                transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                                transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                                transactions.filter(t => t.supervisorId === s.id && t.date < staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
-                              ) +
-                              transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                              transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
-                              transactions.filter(t => t.supervisorId === s.id && t.date === staffDetailsDate && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                                transactions.filter(t => t.supervisorId === s.id && (!staffDetailsEndDate || t.date <= staffDetailsEndDate) && t.type === 'INCOME' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                                transactions.filter(t => t.supervisorId === s.id && (!staffDetailsEndDate || t.date <= staffDetailsEndDate) && t.type === 'EXPENSE' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0) -
+                                transactions.filter(t => t.supervisorId === s.id && (!staffDetailsEndDate || t.date <= staffDetailsEndDate) && t.type === 'RETURN' && t.status === 'APPROVED').reduce((sum, t) => sum + t.amount, 0)
+                              )
                             ).toLocaleString() :
                             bal.remainingCash.toLocaleString()
                           }
@@ -818,10 +949,6 @@ export default function OwnerDashboardView({
       </div>
         </div>
       );})()}
-
-      <div className="absolute bottom-24 left-0 right-0 text-center opacity-60 pointer-events-none z-10">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by Avigos Technologies</p>
-      </div>
 
       {/* ══ EDIT STAFF MODAL ══ */}
       {editingStaff && (
@@ -844,6 +971,7 @@ export default function OwnerDashboardView({
                 src={editingStaff.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(editingStaff.name)}&background=random`}
                 alt={editingStaff.name}
                 className="w-12 h-12 rounded-full object-cover border-2 border-teal-500"
+                onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(editingStaff.name)}&background=random`; }}
               />
               <div>
                 <h3 className="text-base font-bold font-display">Edit Staff Info</h3>
@@ -1284,6 +1412,113 @@ export default function OwnerDashboardView({
           </motion.div>
         </div>
       )}
+
+      {/* ══ SETTINGS TAB ══ */}
+      {currentTab === 'SETTINGS' && (
+        <div className="flex-1 flex flex-col overflow-hidden animate-in fade-in slide-in-from-right-2 duration-300">
+          <div className="flex items-center gap-2 mb-4 shrink-0 px-4 sm:px-6 pt-4">
+            <button onClick={() => setCurrentTab('HOME')} className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </button>
+            <h2 className="text-xl font-bold font-display">Settings</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto no-scrollbar pb-24 px-4 sm:px-6 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+            <div className={`p-2 rounded-xl ${darkMode ? 'bg-slate-800 text-teal-400' : 'bg-teal-50 text-teal-600'}`}>
+              <Edit2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">Manage Lists</h2>
+              <p className="text-xs text-slate-500 font-medium">Add, edit, or remove default options for expenses.</p>
+            </div>
+          </div>
+
+          {/* Categories */}
+          <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wide mb-4">Categories</h3>
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat, i) => (
+                <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  {cat.name}
+                  <button onClick={() => {
+                    const newCats = categories.filter((_, index) => index !== i);
+                    onUpdateSettings(newCats, sites, suppliers);
+                  }} className="text-slate-400 hover:text-red-500 ml-1">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button onClick={() => {
+                const name = window.prompt('Enter new category name:');
+                if (name && name.trim()) {
+                  const newCats = [...categories, { name: name.trim(), icon: 'Tag', color: 'bg-teal-100 text-teal-600 border-teal-200' }];
+                  onUpdateSettings(newCats, sites, suppliers);
+                }
+              }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-slate-300 text-teal-600 hover:bg-slate-50 text-xs font-bold transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Add Category
+              </button>
+            </div>
+          </div>
+
+          {/* Sites */}
+          <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wide mb-4">Sites</h3>
+            <div className="flex flex-wrap gap-2">
+              {sites.map((site, i) => (
+                <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  {site}
+                  <button onClick={() => {
+                    const newSites = sites.filter((_, index) => index !== i);
+                    onUpdateSettings(categories, newSites, suppliers);
+                  }} className="text-slate-400 hover:text-red-500 ml-1">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button onClick={() => {
+                const name = window.prompt('Enter new site name:');
+                if (name && name.trim()) {
+                  const newSites = [...sites, name.trim()];
+                  onUpdateSettings(categories, newSites, suppliers);
+                }
+              }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-slate-300 text-teal-600 hover:bg-slate-50 text-xs font-bold transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Add Site
+              </button>
+            </div>
+          </div>
+
+          {/* Suppliers */}
+          <div className={`p-5 rounded-3xl border ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <h3 className="text-sm font-bold uppercase text-slate-400 tracking-wide mb-4">Suppliers / Vendors</h3>
+            <div className="flex flex-wrap gap-2">
+              {suppliers.map((sup, i) => (
+                <div key={i} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold ${darkMode ? 'bg-slate-950 border-slate-800 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                  {sup}
+                  <button onClick={() => {
+                    const newSuppliers = suppliers.filter((_, index) => index !== i);
+                    onUpdateSettings(categories, sites, newSuppliers);
+                  }} className="text-slate-400 hover:text-red-500 ml-1">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              <button onClick={() => {
+                const name = window.prompt('Enter new supplier name:');
+                if (name && name.trim()) {
+                  const newSuppliers = [...suppliers, name.trim()];
+                  onUpdateSettings(categories, sites, newSuppliers);
+                }
+              }} className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-slate-300 text-teal-600 hover:bg-slate-50 text-xs font-bold transition-colors">
+                <Plus className="w-3.5 h-3.5" /> Add Supplier
+              </button>
+            </div>
+          </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 }

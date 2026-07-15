@@ -21,7 +21,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Transaction, UserRole } from '../types';
-import { CATEGORIES } from '../mockData';
 
 interface TransactionsViewProps {
   transactions: Transaction[];
@@ -32,6 +31,9 @@ interface TransactionsViewProps {
   selectedTxDetails?: Transaction | null;
   setSelectedTxDetails: (tx: Transaction | null) => void;
   onEditExpense?: (tx: Transaction) => void;
+  initialSearchTerm?: string;
+  initialCategoryFilter?: string;
+  categories: {name: string, icon: string, color: string}[];
 }
 
 export default function TransactionsView({
@@ -42,10 +44,13 @@ export default function TransactionsView({
   onEditAllocation,
   selectedTxDetails,
   setSelectedTxDetails,
-  onEditExpense
+  onEditExpense,
+  initialSearchTerm = '',
+  initialCategoryFilter = 'ALL',
+  categories
 }: TransactionsViewProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategoryFilter);
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedType, setSelectedType] = useState('ALL'); // ALL, INCOME, EXPENSE
   const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
@@ -112,7 +117,7 @@ export default function TransactionsView({
               }`}
             >
               <option value="ALL">All Categories</option>
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <option key={cat.name} value={cat.name}>
                   {cat.name}
                 </option>
@@ -206,7 +211,7 @@ export default function TransactionsView({
           </div>
         ) : (
           <div className="space-y-2.5">
-            {filteredTx.slice().reverse().map((tx) => {
+            {filteredTx.map((tx) => {
               const isIncome = tx.type === 'INCOME';
               const isReturn = tx.type === 'RETURN';
 
@@ -284,7 +289,7 @@ export default function TransactionsView({
                       )}
                       {tx.status === 'PENDING' && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-[8px] font-bold">
-                          <Clock className="w-2 h-2" /> Auditing
+                          <Clock className="w-2 h-2" /> Pending
                         </span>
                       )}
                       {tx.status === 'REJECTED' && (
@@ -381,7 +386,7 @@ export default function TransactionsView({
                     )}
                     {selectedTxDetails.status === 'PENDING' && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-bold">
-                        <Clock className="w-3.5 h-3.5 animate-pulse" /> Auditing
+                        <Clock className="w-3.5 h-3.5 animate-pulse" /> Pending
                       </span>
                     )}
                     {selectedTxDetails.status === 'REJECTED' && (
@@ -401,8 +406,20 @@ export default function TransactionsView({
               {/* Data Table */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
-                  <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">Flow Type</span>
-                  <span className="font-bold mt-1 block">{selectedTxDetails.type === 'INCOME' ? 'Allocation Inflow' : selectedTxDetails.type === 'RETURN' ? 'Cash Return' : 'Field Expense'}</span>
+                  <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">
+                    {selectedTxDetails.type === 'EXPENSE' ? 'Site Name' : 'Flow Type'}
+                  </span>
+                  <span className="font-bold mt-1 block">
+                    {selectedTxDetails.type === 'INCOME' 
+                      ? 'Allocation Inflow' 
+                      : selectedTxDetails.type === 'RETURN' 
+                        ? 'Cash Return' 
+                        : (selectedTxDetails.description.match(/^\[(.*?)\]/) 
+                            ? selectedTxDetails.description.match(/^\[(.*?)\]/)?.[1] 
+                            : (selectedTxDetails.description.match(/at (.*?) from/) 
+                                ? selectedTxDetails.description.match(/at (.*?) from/)?.[1] 
+                                : 'Unknown Site'))}
+                  </span>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
                   <span className="text-slate-400 font-mono tracking-wider text-[9px] uppercase block">Category Tag</span>

@@ -188,16 +188,17 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
   }
 ];
 
-export const CATEGORIES = [
+export const INITIAL_CATEGORIES = [
   { name: 'Fuel', icon: 'Fuel', color: 'bg-blue-100 text-blue-600 border-blue-200' },
   { name: 'Materials', icon: 'HardHat', color: 'bg-amber-100 text-amber-600 border-amber-200' },
   { name: 'Supplies', icon: 'ShoppingBag', color: 'bg-teal-100 text-teal-600 border-teal-200' },
   { name: 'Repairs', icon: 'Wrench', color: 'bg-red-100 text-red-600 border-red-200' },
   { name: 'Meals', icon: 'Coffee', color: 'bg-orange-100 text-orange-600 border-orange-200' },
-  { name: 'Travel', icon: 'Truck', color: 'bg-purple-100 text-purple-600 border-purple-200' },
-  { name: 'Equipment', icon: 'Hammer', color: 'bg-indigo-100 text-indigo-600 border-indigo-200' },
   { name: 'Allocation', icon: 'Wallet', color: 'bg-green-100 text-green-600 border-green-200' }
 ];
+
+export const INITIAL_SITES = ['Common', 'Site A', 'Site B', 'Downtown Project', 'Uptown Site'];
+export const INITIAL_SUPPLIERS = ['General', 'Vendor A', 'Vendor B', 'Local Store', 'Wholesale Depot'];
 
 export const MOCK_RECEIPTS = [
   { name: 'Home Depot Receipt', url: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80' },

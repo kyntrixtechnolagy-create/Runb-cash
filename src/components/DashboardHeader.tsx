@@ -30,9 +30,8 @@ export default function DashboardHeader({
   const isOwner = user.role === 'OWNER';
 
   return (
-    <div className={`px-4 pt-3 pb-2.5 flex items-center justify-between border-b transition-colors duration-300 z-20 relative sticky top-0 backdrop-blur-md ${
-      darkMode ? 'bg-[#0B1C2C]/95 border-green-900/30' : 'bg-white/95 border-green-100'
-    }`}>
+    <div className={`px-4 pt-3 pb-2.5 flex items-center justify-between border-b transition-colors duration-300 z-20 relative sticky top-0 backdrop-blur-md ${darkMode ? 'bg-[#0B1C2C]/95 border-green-900/30' : 'bg-white/95 border-green-100'
+      }`}>
 
       {/* Left — Logo + App name */}
       <div className="flex items-center gap-2.5">
@@ -49,13 +48,12 @@ export default function DashboardHeader({
           <img
             src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=16a34a&color=fff`}
             alt={user.name}
-            className={`w-8 h-8 rounded-full object-cover border-2 ${
-              isOwner ? 'border-green-500' : 'border-emerald-400'
-            }`}
+            className={`w-8 h-8 rounded-full object-cover border-2 ${isOwner ? 'border-green-500' : 'border-emerald-400'
+              }`}
+            onError={(e) => { e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=16a34a&color=fff`; }}
           />
-          <div className={`absolute -bottom-0.5 -right-0.5 rounded-full p-0.5 border border-white dark:border-[#0B1C2C] ${
-            isOwner ? 'bg-green-600' : 'bg-emerald-500'
-          }`}>
+          <div className={`absolute -bottom-0.5 -right-0.5 rounded-full p-0.5 border border-white dark:border-[#0B1C2C] ${isOwner ? 'bg-green-600' : 'bg-emerald-500'
+            }`}>
             <ShieldCheck className="w-2 h-2 text-white" />
           </div>
         </div>
@@ -74,11 +72,10 @@ export default function DashboardHeader({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className={`p-2 rounded-xl border transition-all-300 ${
-              darkMode
-                ? 'bg-green-950/40 border-green-900/40 hover:bg-green-900/40 text-green-400 active:text-green-300'
-                : 'bg-green-50 border-green-200 hover:bg-green-100 text-green-700'
-            }`}
+            className={`p-2 rounded-xl border transition-all-300 ${darkMode
+              ? 'bg-green-950/40 border-green-900/40 hover:bg-green-900/40 text-green-400 active:text-green-300'
+              : 'bg-green-50 border-green-200 hover:bg-green-100 text-green-700'
+              }`}
             title="Sync"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -87,11 +84,10 @@ export default function DashboardHeader({
 
         <button
           onClick={onNotificationClick}
-          className={`p-2 rounded-xl border relative transition-all-300 ${
-            darkMode
-              ? 'bg-green-950/40 border-green-900/40 hover:bg-green-900/40 text-green-400'
-              : 'bg-green-50 border-green-200 hover:bg-green-100 text-green-700'
-          }`}
+          className={`p-2 rounded-xl border relative transition-all-300 ${darkMode
+            ? 'bg-green-950/40 border-green-900/40 hover:bg-green-900/40 text-green-400'
+            : 'bg-green-50 border-green-200 hover:bg-green-100 text-green-700'
+            }`}
         >
           <Bell className="w-3.5 h-3.5" />
           {notificationCount > 0 && (
@@ -104,11 +100,10 @@ export default function DashboardHeader({
 
         <button
           onClick={onLogout}
-          className={`p-2 rounded-xl border transition-all-300 ${
-            darkMode
-              ? 'bg-green-950/40 border-green-900/40 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/40 text-slate-400'
-              : 'bg-green-50 border-green-200 hover:bg-red-50 hover:text-red-600 hover:border-red-100 text-slate-600'
-          }`}
+          className={`p-2 rounded-xl border transition-all-300 ${darkMode
+            ? 'bg-green-950/40 border-green-900/40 hover:bg-red-900/20 hover:text-red-400 hover:border-red-900/40 text-slate-400'
+            : 'bg-green-50 border-green-200 hover:bg-red-50 hover:text-red-600 hover:border-red-100 text-slate-600'
+            }`}
           title="Sign Out"
         >
           <LogOut className="w-3.5 h-3.5" />

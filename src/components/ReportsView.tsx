@@ -22,7 +22,6 @@ import {
   Filter
 } from 'lucide-react';
 import { Transaction, UserRole, User as SupervisorType } from '../types';
-import { CATEGORIES } from '../mockData';
 
 interface ReportsViewProps {
   transactions: Transaction[];
@@ -34,6 +33,8 @@ interface ReportsViewProps {
   onApproveDaily?: (supervisorId: string, date: string) => void;
   initialSupFilter?: string;
   initialReportType?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR';
+  onChartClick?: (filterType: 'CATEGORY' | 'STAFF' | 'SITE', name: string) => void;
+  categories: {name: string, icon: string, color: string}[];
 }
 
 export default function ReportsView({
@@ -45,7 +46,9 @@ export default function ReportsView({
   onMarkMistake,
   onApproveDaily,
   initialSupFilter,
-  initialReportType
+  initialReportType,
+  onChartClick,
+  categories
 }: ReportsViewProps) {
   const [reportType, setReportType] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR'>(initialReportType || 'DAILY');
   const [startDate, setStartDate] = useState(() => {
@@ -108,7 +111,7 @@ export default function ReportsView({
   const averageTicket = expenses.length > 0 ? Math.round(totalSpent / expenses.length) : 0;
 
   // Group Expenses by Category for Charts
-  const categoryChartData = CATEGORIES.map((cat) => {
+  const categoryChartData = categories.map((cat) => {
     const amt = reportTransactions
       .filter((t) => t.type === 'EXPENSE' && t.status === 'APPROVED' && t.category.toLowerCase() === cat.name.toLowerCase())
       .reduce((sum, t) => sum + t.amount, 0);
@@ -531,7 +534,11 @@ export default function ReportsView({
               const pct = Math.round((cat.amount / totalSpent) * 100);
 
               return (
-                <div key={idx} className="space-y-1">
+                <div 
+                  key={idx} 
+                  className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
+                  onClick={() => onChartClick?.('CATEGORY', cat.name)}
+                >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-teal-500" />
@@ -565,7 +572,11 @@ export default function ReportsView({
               const pct = Math.round((staff.amount / totalSpent) * 100);
 
               return (
-                <div key={idx} className="space-y-1">
+                <div 
+                  key={idx} 
+                  className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
+                  onClick={() => onChartClick?.('STAFF', staff.name)}
+                >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-purple-500" />
@@ -599,7 +610,11 @@ export default function ReportsView({
               const pct = Math.round((site.amount / totalSpent) * 100);
 
               return (
-                <div key={idx} className="space-y-1">
+                <div 
+                  key={idx} 
+                  className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
+                  onClick={() => onChartClick?.('SITE', site.name)}
+                >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-blue-500" />

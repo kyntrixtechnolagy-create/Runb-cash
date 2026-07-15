@@ -144,6 +144,7 @@ export default function ProfileView({
             className={`w-20 h-20 rounded-full object-cover border-4 ${
               isOwner ? 'border-blue-500' : 'border-teal-500'
             }`}
+            onError={(e) => { e.currentTarget.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150'; }}
           />
           {!isAuditor && (
             <button
@@ -171,16 +172,7 @@ export default function ProfileView({
 
         {isEditingInfo ? (
           <div className="w-full mt-5 border-t border-slate-100 dark:border-slate-800/60 pt-4 space-y-3 text-xs text-left">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Photo URL (Link)</label>
-              <input 
-                type="text" 
-                value={editAvatarUrl} 
-                onChange={e => setEditAvatarUrl(e.target.value)} 
-                className={`w-full p-2.5 rounded-xl outline-none border transition-colors ${darkMode ? 'bg-slate-950 border-slate-800 focus:border-teal-500' : 'bg-slate-50 border-slate-200 focus:border-teal-500'}`}
-                placeholder="https://images.unsplash.com/..."
-              />
-            </div>
+
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mobile Number</label>
               <input 

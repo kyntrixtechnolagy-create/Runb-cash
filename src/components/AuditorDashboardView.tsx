@@ -45,7 +45,7 @@ export default function AuditorDashboardView({
   return (
     <div className={`p-5 pb-24 ${darkMode ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} min-h-full`}>
       {/* Header */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center gap-3 mb-6"
@@ -64,7 +64,7 @@ export default function AuditorDashboardView({
 
       {/* Main Stats Cards */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
@@ -80,7 +80,7 @@ export default function AuditorDashboardView({
           </p>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -90,7 +90,7 @@ export default function AuditorDashboardView({
           <p className="text-lg font-display font-bold text-red-500">{formatINR(stats.totalSpent)}</p>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -115,7 +115,7 @@ export default function AuditorDashboardView({
           </div>
           <span className="text-xs font-bold">View Ledger</span>
         </motion.button>
-        
+
         <motion.button
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -145,7 +145,7 @@ export default function AuditorDashboardView({
             balances.map((balance, i) => {
               const supervisor = supervisors.find(s => s.id === balance.supervisorId);
               return (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 + (i * 0.1) }}
@@ -161,7 +161,7 @@ export default function AuditorDashboardView({
                       Allocated: {formatINR(balance.allocatedCash)}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between mt-3 text-xs">
                     <div>
                       <span className="text-slate-400 font-medium">Spent: </span>
@@ -172,10 +172,10 @@ export default function AuditorDashboardView({
                       <span className="font-bold text-emerald-500">{formatINR(balance.remainingCash)}</span>
                     </div>
                   </div>
-                  
+
                   {/* Visual Progress Bar */}
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-3 overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full"
                       style={{ width: `${balance.allocatedCash > 0 ? Math.min(100, (balance.spentCash / balance.allocatedCash) * 100) : 0}%` }}
                     ></div>
@@ -184,7 +184,7 @@ export default function AuditorDashboardView({
               );
             })
           ) : (
-             <div className={`text-center py-6 rounded-3xl border border-dashed ${darkMode ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
+            <div className={`text-center py-6 rounded-3xl border border-dashed ${darkMode ? 'border-slate-800 text-slate-500' : 'border-slate-200 text-slate-400'}`}>
               <p className="text-xs font-medium">No staff members found.</p>
             </div>
           )}
@@ -198,27 +198,24 @@ export default function AuditorDashboardView({
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className={`relative w-full max-w-md max-h-[80vh] flex flex-col rounded-3xl shadow-2xl overflow-hidden ${
-              darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-slate-100'
-            }`}
+            className={`relative w-full max-w-md max-h-[80vh] flex flex-col rounded-3xl shadow-2xl overflow-hidden ${darkMode ? 'bg-slate-900 border border-slate-800' : 'bg-white border border-slate-100'
+              }`}
           >
-            <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-10 ${
-              darkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-100 bg-white/90'
-            } backdrop-blur-md`}>
+            <div className={`p-4 border-b flex items-center justify-between sticky top-0 z-10 ${darkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-100 bg-white/90'
+              } backdrop-blur-md`}>
               <h2 className="font-bold text-lg flex items-center gap-2">
                 <Users className="w-5 h-5 text-purple-500" />
                 Staff Balances
               </h2>
               <button
                 onClick={() => setShowStaffModal(false)}
-                className={`p-2 rounded-full ${
-                  darkMode ? 'bg-slate-800 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-900'
-                }`}
+                className={`p-2 rounded-full ${darkMode ? 'bg-slate-800 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-900'
+                  }`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="p-4 overflow-y-auto space-y-3">
               {balances.length > 0 ? (
                 balances.map((balance, i) => {
@@ -240,7 +237,7 @@ export default function AuditorDashboardView({
                           Allocated: {formatINR(balance.allocatedCash)}
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between mt-3 text-xs">
                         <div>
                           <span className="text-slate-400 font-medium">Spent: </span>
@@ -251,9 +248,9 @@ export default function AuditorDashboardView({
                           <span className="font-bold text-emerald-500">{formatINR(balance.remainingCash)}</span>
                         </div>
                       </div>
-                      
+
                       <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-3 overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full"
                           style={{ width: `${balance.allocatedCash > 0 ? Math.min(100, (balance.spentCash / balance.allocatedCash) * 100) : 0}%` }}
                         ></div>
@@ -267,22 +264,19 @@ export default function AuditorDashboardView({
                 </div>
               )}
             </div>
-            
+
             <div className={`p-4 border-t ${darkMode ? 'border-slate-800 bg-slate-900/90' : 'border-slate-100 bg-white/90'} backdrop-blur-md`}>
-               <button
-                  onClick={() => setShowStaffModal(false)}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 text-slate-800 dark:text-slate-200 font-bold text-sm shadow-sm active:scale-[0.98] transition-transform"
-                >
-                  Close
-                </button>
+              <button
+                onClick={() => setShowStaffModal(false)}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 text-slate-800 dark:text-slate-200 font-bold text-sm shadow-sm active:scale-[0.98] transition-transform"
+              >
+                Close
+              </button>
             </div>
           </motion.div>
         </div>
       )}
 
-      <div className="text-center py-6 pb-2 opacity-60">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Powered by Avigos Technologies</p>
-      </div>
     </div>
   );
 }

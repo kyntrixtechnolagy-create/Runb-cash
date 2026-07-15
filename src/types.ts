@@ -40,6 +40,7 @@ export interface Transaction {
   receiptUrl?: string;
   status: TransactionStatus;
   mistakeNote?: string;
+  supplier?: string;
 }
 
 export interface PettyCashStats {

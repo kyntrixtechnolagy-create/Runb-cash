@@ -75,10 +75,16 @@ export default function SplashView({ onComplete }: SplashViewProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.6 }}
           transition={{ delay: 1.1, duration: 0.6 }}
-          className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-green-300"
+          className="flex flex-col items-center gap-4"
         >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Secured & Safe Cash Manager</span>
+          <div className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-green-300">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Secured & Safe Cash Manager</span>
+          </div>
+          
+          <div className="opacity-60">
+            <p className="text-[10px] font-bold text-green-400/80 uppercase tracking-widest">Powered by Avigos Technologies</p>
+          </div>
         </motion.div>
       </div>
     </div>

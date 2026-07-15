@@ -20,7 +20,8 @@ import {
   ChevronRight,
   Sparkles,
   Signal,
-  Bell
+  Bell,
+  RefreshCw
 } from 'lucide-react';
 
 import { ActiveScreen, UserRole, User as UserType, Transaction, SupervisorBalance } from './types';
@@ -46,6 +47,7 @@ import ProfileView from './components/ProfileView';
 import CollectCashView from './components/CollectCashView';
 import RequestCashView from './components/RequestCashView';
 import Toast, { ToastMessage } from './components/Toast';
+import { INITIAL_CATEGORIES, INITIAL_SITES, INITIAL_SUPPLIERS } from './mockData';
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('SPLASH');
@@ -56,17 +58,56 @@ export default function App() {
   const [balances, setBalances] = useState<SupervisorBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reportStaffFilter, setReportStaffFilter] = useState<string | null>(null);
+  
+  const [txSearchFilter, setTxSearchFilter] = useState<string>('');
+  const [txCategoryFilter, setTxCategoryFilter] = useState<string>('ALL');
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme-preference') === 'dark');
 
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const savedTheme = localStorage.getItem('theme-preference');
-    return savedTheme === 'dark';
+  // Dynamic Settings (Categories, Sites, Suppliers)
+  const [categories, setCategories] = useState<{name: string, icon: string, color: string}[]>(() => {
+    const saved = localStorage.getItem('pc_categories');
+    return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
   });
+  const [sites, setSites] = useState<string[]>(() => {
+    const saved = localStorage.getItem('pc_sites');
+    return saved ? JSON.parse(saved) : INITIAL_SITES;
+  });
+  const [suppliers, setSuppliers] = useState<string[]>(() => {
+    const saved = localStorage.getItem('pc_suppliers');
+    return saved ? JSON.parse(saved) : INITIAL_SUPPLIERS;
+  });
+
+  const handleUpdateSettings = async (newCategories: any[], newSites: string[], newSuppliers: string[]) => {
+    setCategories(newCategories);
+    setSites(newSites);
+    setSuppliers(newSuppliers);
+    
+    // Fallback local storage for immediate offline feel
+    localStorage.setItem('pc_categories', JSON.stringify(newCategories));
+    localStorage.setItem('pc_sites', JSON.stringify(newSites));
+    localStorage.setItem('pc_suppliers', JSON.stringify(newSuppliers));
+
+    // Save to Supabase
+    try {
+      await supabase.from('company_settings').upsert({
+        id: 'global',
+        categories: newCategories,
+        sites: newSites,
+        suppliers: newSuppliers,
+        updated_at: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Failed to sync settings to Supabase', err);
+      showToast('Failed to sync settings globally', 'ERROR');
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('theme-preference', darkMode ? 'dark' : 'light');
   }, [darkMode]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAppLoading, setIsAppLoading] = useState(false);
   const [selectedTxDetails, setSelectedTxDetails] = useState<Transaction | null>(null);
 
   // Push Notification State
@@ -179,6 +220,7 @@ export default function App() {
 
   // Fetch real data from Supabase
   const loadDatabase = async (userId: string) => {
+    setIsAppLoading(true);
     try {
       const { data: sups } = await supabase.from('users').select('*').eq('role', 'SUPERVISOR');
       const { data: bals } = await supabase.from('supervisor_balances').select('*');
@@ -210,8 +252,21 @@ export default function App() {
       }
 
       if (txs) setTransactions(txs as Transaction[]);
+
+      // Load Settings
+      const { data: settingsData } = await supabase.from('company_settings').select('*').eq('id', 'global').maybeSingle();
+      if (settingsData) {
+        if (settingsData.categories) setCategories(settingsData.categories);
+        if (settingsData.sites) setSites(settingsData.sites);
+        if (settingsData.suppliers) setSuppliers(settingsData.suppliers);
+      } else {
+        // Fallback to local defaults if DB not initialized yet for settings
+        // It will be created the first time the owner saves settings
+      }
     } catch (e) {
       console.error(e);
+    } finally {
+      setIsAppLoading(false);
     }
   };
 
@@ -825,6 +880,7 @@ export default function App() {
     description: string;
     date: string;
     receiptUrl?: string;
+    supplier?: string;
   }) => {
     if (!currentUser) return;
 
@@ -975,6 +1031,17 @@ export default function App() {
     localStorage.setItem('pc_db_initialized', 'true');
 
     showToast('Demo dataset reset to high-fidelity factory settings.', 'SUCCESS');
+  };
+
+  const handleChartClick = (filterType: 'CATEGORY' | 'STAFF' | 'SITE', name: string) => {
+    if (filterType === 'CATEGORY') {
+      setTxCategoryFilter(name);
+      setTxSearchFilter('');
+    } else {
+      setTxCategoryFilter('ALL');
+      setTxSearchFilter(name);
+    }
+    setActiveScreen('TRANSACTIONS');
   };
 
   // Quick switch role utility on side controller
@@ -1140,6 +1207,15 @@ export default function App() {
 
                     {/* Active Screen View Switch */}
                     <div className="flex-1 flex flex-col overflow-hidden relative">
+                      {isAppLoading && (
+                        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
+                          <div className="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
+                             <RefreshCw className="w-8 h-8 animate-spin text-green-500 mb-3" />
+                             <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Loading Data...</p>
+                          </div>
+                        </div>
+                      )}
+
 
                       {activeScreen === 'OWNER_DASHBOARD' && (
                         <OwnerDashboardView
@@ -1148,6 +1224,10 @@ export default function App() {
                           balances={balances}
                           transactions={transactions}
                           darkMode={darkMode}
+                          categories={categories}
+                          sites={sites}
+                          suppliers={suppliers}
+                          onUpdateSettings={handleUpdateSettings}
                           onAllocateCash={handleAllocateCash}
                           onAddSupervisor={handleAddSupervisor}
                           onReviewTransaction={handleReviewTransaction}
@@ -1181,6 +1261,7 @@ export default function App() {
 
                       {activeScreen === 'SUPERVISOR_DASHBOARD' && (
                         <SupervisorDashboardView
+                          onViewLedgerClick={() => setActiveScreen('TRANSACTIONS')}
                           user={currentUser}
                           balance={activeSupBalance}
                           spendableCash={spendableCash}
@@ -1204,6 +1285,9 @@ export default function App() {
 
                       {activeScreen === 'TRANSACTIONS' && (
                         <TransactionsView
+                          key={`tx-${txSearchFilter}-${txCategoryFilter}`}
+                          initialSearchTerm={txSearchFilter}
+                          initialCategoryFilter={txCategoryFilter}
                           transactions={(currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR') ? transactions : transactions.filter(t => t.supervisorId === currentUser.id)}
                           userRole={currentUser.role}
                           darkMode={darkMode}
@@ -1215,6 +1299,7 @@ export default function App() {
                             setSelectedTxDetails(tx);
                             setActiveScreen('EDIT_EXPENSE');
                           }}
+                          categories={categories}
                         />
                       )}
 
@@ -1224,6 +1309,9 @@ export default function App() {
                           onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
                           darkMode={darkMode}
                           availableBalance={spendableCash}
+                          categories={categories}
+                          sites={sites}
+                          suppliers={suppliers}
                         />
                       )}
 
@@ -1254,14 +1342,17 @@ export default function App() {
 
                       {activeScreen === 'EDIT_EXPENSE' && selectedTxDetails && (
                         <EditExpenseView
-                          transaction={selectedTxDetails}
+                          transaction={transactions.find(t => t.id === selectedTxDetails?.id)!}
                           onUpdateExpense={handleUpdateExpense}
                           onCancel={() => {
-                            setActiveScreen('SUPERVISOR_DASHBOARD');
                             setSelectedTxDetails(null);
+                            setActiveScreen('TRANSACTIONS');
                           }}
                           darkMode={darkMode}
                           availableBalance={activeSupBalance.remainingCash + selectedTxDetails.amount}
+                          categories={categories}
+                          sites={sites}
+                          suppliers={suppliers}
                         />
                       )}
 
@@ -1277,6 +1368,8 @@ export default function App() {
                           onApproveDaily={handleApproveDaily}
                           initialSupFilter={reportStaffFilter || undefined}
                           initialReportType={reportStaffFilter ? 'SUPERVISOR' : undefined}
+                          onChartClick={handleChartClick}
+                          categories={categories}
                         />
                       )}
 
