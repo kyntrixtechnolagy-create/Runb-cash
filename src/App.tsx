@@ -21,7 +21,8 @@ import {
   Sparkles,
   Signal,
   Bell,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 
 import { ActiveScreen, UserRole, User as UserType, Transaction, SupervisorBalance } from './types';
@@ -61,6 +62,8 @@ export default function App() {
   
   const [txSearchFilter, setTxSearchFilter] = useState<string>('');
   const [txCategoryFilter, setTxCategoryFilter] = useState<string>('ALL');
+  const [txStartDate, setTxStartDate] = useState<string>('');
+  const [txEndDate, setTxEndDate] = useState<string>('');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme-preference') === 'dark');
 
   // Dynamic Settings (Categories, Sites, Suppliers)
@@ -109,6 +112,7 @@ export default function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(false);
   const [selectedTxDetails, setSelectedTxDetails] = useState<Transaction | null>(null);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   // Push Notification State
   const [pushPermissionStatus, setPushPermissionStatus] = useState<string>('granted');
@@ -166,10 +170,14 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Subscribe to Push Notifications
+  // Subscribe to Push Notifications (Only if already granted)
   useEffect(() => {
     if (currentUser && currentUser.id) {
-      subscribeToPushNotifications(currentUser.id);
+      if ('Notification' in window && Notification.permission === 'granted') {
+        subscribeToPushNotifications(currentUser.id).catch(err => {
+          console.warn('Silent push subscription failed:', err);
+        });
+      }
     }
   }, [currentUser]);
 
@@ -1033,7 +1041,7 @@ export default function App() {
     showToast('Demo dataset reset to high-fidelity factory settings.', 'SUCCESS');
   };
 
-  const handleChartClick = (filterType: 'CATEGORY' | 'STAFF' | 'SITE', name: string) => {
+  const handleChartClick = (filterType: 'CATEGORY' | 'STAFF' | 'SITE' | 'SUPPLIER', name: string, startDate?: string, endDate?: string) => {
     if (filterType === 'CATEGORY') {
       setTxCategoryFilter(name);
       setTxSearchFilter('');
@@ -1041,6 +1049,8 @@ export default function App() {
       setTxCategoryFilter('ALL');
       setTxSearchFilter(name);
     }
+    setTxStartDate(startDate || '');
+    setTxEndDate(endDate || '');
     setActiveScreen('TRANSACTIONS');
   };
 
@@ -1071,6 +1081,32 @@ export default function App() {
     const limitRemaining = Math.max(0, currentUser.spendLimit - activeSupBalance.spentCash);
     spendableCash = Math.min(spendableCash, limitRemaining);
   }
+
+  // Calculate pending items for notification icon
+  const getPendingNotificationsCount = () => {
+    if (!currentUser) return 0;
+    if (currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR') {
+      return transactions.filter(t => 
+        (t.type === 'EXPENSE' && t.status === 'PENDING') || 
+        (t.category === 'STAFF_TRANSFER' && t.status === 'PENDING')
+      ).length;
+    } else {
+      return transactions.filter(t => 
+        t.supervisorId === currentUser.id && 
+        ((t.type === 'EXPENSE' && (t.status === 'REJECTED' || t.status === 'NEEDS_CORRECTION')) ||
+         (t.category === 'Allocation' && t.status === 'PENDING'))
+      ).length;
+    }
+  };
+
+  const pendingNotifications = getPendingNotificationsCount();
+  const handleNotificationClick = () => {
+    if (pendingNotifications > 0) {
+      setShowNotificationsModal(true);
+    } else {
+      showToast('You have no new notifications.', 'INFO');
+    }
+  };
 
   return (
     <div className={`fixed inset-0 w-full h-[100dvh] lg:h-auto lg:relative lg:min-h-screen flex items-center justify-center p-0 lg:p-12 font-sans transition-colors duration-300 overflow-hidden ${darkMode ? 'dark bg-[#0B1C2C] text-slate-100' : 'bg-vibrant-bg text-vibrant-text'
@@ -1184,6 +1220,8 @@ export default function App() {
                       onLogout={handleLogout}
                       onRefresh={handleRefreshLedger}
                       isRefreshing={isRefreshing}
+                      notificationCount={pendingNotifications}
+                      onNotificationClick={handleNotificationClick}
                     />
 
                     {/* Push Notification Banner */}
@@ -1285,9 +1323,11 @@ export default function App() {
 
                       {activeScreen === 'TRANSACTIONS' && (
                         <TransactionsView
-                          key={`tx-${txSearchFilter}-${txCategoryFilter}`}
+                          key={`tx-${txSearchFilter}-${txCategoryFilter}-${txStartDate}-${txEndDate}`}
                           initialSearchTerm={txSearchFilter}
                           initialCategoryFilter={txCategoryFilter}
+                          initialStartDate={txStartDate}
+                          initialEndDate={txEndDate}
                           transactions={(currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR') ? transactions : transactions.filter(t => t.supervisorId === currentUser.id)}
                           userRole={currentUser.role}
                           darkMode={darkMode}
@@ -1395,6 +1435,83 @@ export default function App() {
                         onFabClick={() => setActiveScreen('ADD_EXPENSE')}
                       />
                     )}
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* Notifications Modal */}
+              <AnimatePresence>
+                {showNotificationsModal && (
+                  <div className="absolute inset-0 z-[100] flex flex-col justify-end">
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+                      onClick={() => setShowNotificationsModal(false)}
+                    />
+                    <motion.div
+                      initial={{ y: "100%" }}
+                      animate={{ y: 0 }}
+                      exit={{ y: "100%" }}
+                      className={`w-full max-h-[80%] overflow-y-auto rounded-t-[32px] p-6 shadow-2xl relative transition-colors duration-300 ${
+                        darkMode ? 'bg-slate-900 border-t border-slate-800 text-white' : 'bg-white text-slate-900'
+                      }`}
+                    >
+                      <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-4" />
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-5 h-5 text-primary" />
+                          <h2 className="text-lg font-bold">Needs Attention</h2>
+                        </div>
+                        <button onClick={() => setShowNotificationsModal(false)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {(() => {
+                          const items = currentUser ? (currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR'
+                            ? transactions.filter(t => (t.type === 'EXPENSE' && t.status === 'PENDING') || (t.category === 'STAFF_TRANSFER' && t.status === 'PENDING'))
+                            : transactions.filter(t => t.supervisorId === currentUser.id && ((t.type === 'EXPENSE' && (t.status === 'REJECTED' || t.status === 'NEEDS_CORRECTION')) || (t.category === 'Allocation' && t.status === 'PENDING')))
+                          ) : [];
+
+                          return items.length > 0 ? items.map(item => (
+                            <div 
+                              key={item.id}
+                              onClick={() => {
+                                setShowNotificationsModal(false);
+                                setSelectedTxDetails(item);
+                                setActiveScreen('TRANSACTIONS');
+                              }}
+                              className={`p-3 rounded-2xl border cursor-pointer hover:scale-[1.02] transition-all flex items-center justify-between ${
+                                darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'
+                              }`}
+                            >
+                              <div>
+                                <div className="text-sm font-bold">{item.category === 'Allocation' ? 'Incoming Allocation' : item.category === 'STAFF_TRANSFER' ? 'Staff Transfer' : 'Expense Approval'}</div>
+                                <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{item.description.replace(/\[.*?\]\s*\{.*?\}/, '').trim() || 'No description'}</div>
+                                <div className="text-[10px] text-slate-400 mt-1">{item.supervisorName} • {new Date(item.date).toLocaleDateString()}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-bold font-mono">Rs. {item.amount.toLocaleString()}</div>
+                                <div className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-1 ${
+                                  item.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 
+                                  item.status === 'NEEDS_CORRECTION' ? 'bg-orange-100 text-orange-600' :
+                                  'bg-amber-100 text-amber-600'
+                                }`}>
+                                  {item.status.replace('_', ' ')}
+                                </div>
+                              </div>
+                            </div>
+                          )) : (
+                            <div className="text-center py-8 text-slate-500 text-sm">
+                              All caught up! No pending items.
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </motion.div>
                   </div>
                 )}
               </AnimatePresence>

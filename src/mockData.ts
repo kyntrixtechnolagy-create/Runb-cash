@@ -91,6 +91,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     supervisorId: 'sup-1',
     supervisorName: 'Alex Rivera',
     receiptUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80',
+    supplier: 'Wholesale Depot',
     status: 'APPROVED'
   },
   {
@@ -114,6 +115,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     supervisorId: 'sup-2',
     supervisorName: 'Maria Chen',
     receiptUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80',
+    supplier: 'Vendor B',
     status: 'APPROVED'
   },
   {
@@ -137,6 +139,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     supervisorId: 'sup-3',
     supervisorName: 'David Koomson',
     receiptUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80',
+    supplier: 'Local Store',
     status: 'APPROVED'
   },
   {
@@ -149,6 +152,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     supervisorId: 'sup-1',
     supervisorName: 'Alex Rivera',
     receiptUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80',
+    supplier: 'Vendor A',
     status: 'PENDING'
   },
   {
@@ -161,6 +165,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     supervisorId: 'sup-1',
     supervisorName: 'Alex Rivera',
     receiptUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80',
+    supplier: 'General',
     status: 'PENDING'
   },
   {
@@ -172,6 +177,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     date: '2026-06-28',
     supervisorId: 'sup-2',
     supervisorName: 'Maria Chen',
+    supplier: 'General',
     status: 'APPROVED'
   },
   {
@@ -184,6 +190,7 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     supervisorId: 'sup-2',
     supervisorName: 'Maria Chen',
     receiptUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=400&auto=format&fit=crop&q=80',
+    supplier: 'Vendor A',
     status: 'PENDING'
   }
 ];

@@ -146,7 +146,7 @@ export default function OwnerDashboardView({
   const supervisorRemaining = balances.reduce((sum, b) => sum + b.remainingCash, 0);
   const liveTotalLiquidValue = remainingTreasury + supervisorRemaining;
 
-  const [chartFilter, setChartFilter] = useState<'SITE' | 'STAFF' | 'CATEGORY'>('CATEGORY');
+  const [chartFilter, setChartFilter] = useState<'SITE' | 'STAFF' | 'CATEGORY' | 'SUPPLIER'>('CATEGORY');
   const [timeFilter, setTimeFilter] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL'>('ALL');
   
   const getChartData = () => {
@@ -176,6 +176,20 @@ export default function OwnerDashboardView({
             key = spentMatch[1];
           } else {
             key = 'Unassigned';
+          }
+        }
+      } else if (chartFilter === 'SUPPLIER') {
+        if (t.supplier) {
+          key = t.supplier;
+        } else {
+          const bracketMatch = t.description.match(/^\[.*?\]\s*\{(.*?)\}/);
+          if (bracketMatch) {
+            key = bracketMatch[1];
+          } else {
+            const spentMatch = t.description.match(/from (.*)$/);
+            if (spentMatch) {
+              key = spentMatch[1];
+            }
           }
         }
       } else if (chartFilter === 'STAFF') {
@@ -338,31 +352,36 @@ export default function OwnerDashboardView({
 
       {/* Graphical Chart Section */}
       <div className={`p-4 rounded-[20px] border shadow-sm ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">Expenses Breakdown</h3>
-          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+        <div className="flex items-center justify-center mb-4 w-full">
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1 w-full sm:w-auto overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setChartFilter('SITE')}
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'SITE' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex-1 px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'SITE' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               SITE
             </button>
             <button 
               onClick={() => setChartFilter('STAFF')}
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'STAFF' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex-1 px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'STAFF' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               STAFF
             </button>
             <button 
+              onClick={() => setChartFilter('SUPPLIER')}
+              className={`flex-1 px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'SUPPLIER' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+            >
+              SUPPLIER
+            </button>
+            <button 
               onClick={() => setChartFilter('CATEGORY')}
-              className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'CATEGORY' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`flex-1 px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${chartFilter === 'CATEGORY' ? 'bg-white dark:bg-slate-700 text-teal-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               CATEGORY
             </button>
           </div>
         </div>
         
-        <div className="flex items-center gap-1.5 mb-4">
+        <div className="flex items-center justify-center gap-1.5 mb-4 overflow-x-auto no-scrollbar">
           {['ALL', 'MONTHLY', 'WEEKLY', 'DAILY'].map((tf) => (
             <button
               key={tf}

@@ -33,7 +33,9 @@ interface TransactionsViewProps {
   onEditExpense?: (tx: Transaction) => void;
   initialSearchTerm?: string;
   initialCategoryFilter?: string;
-  categories: {name: string, icon: string, color: string}[];
+  initialStartDate?: string;
+  initialEndDate?: string;
+  categories: { name: string, icon: string, color: string }[];
 }
 
 export default function TransactionsView({
@@ -47,13 +49,16 @@ export default function TransactionsView({
   onEditExpense,
   initialSearchTerm = '',
   initialCategoryFilter = 'ALL',
+  initialStartDate = '',
+  initialEndDate = '',
   categories
 }: TransactionsViewProps) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [selectedCategory, setSelectedCategory] = useState(initialCategoryFilter);
   const [selectedStatus, setSelectedStatus] = useState('ALL');
   const [selectedType, setSelectedType] = useState('ALL'); // ALL, INCOME, EXPENSE
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
 
   const isOwner = userRole === 'OWNER';
   const isSupervisor = userRole === 'SUPERVISOR';
@@ -69,7 +74,7 @@ export default function TransactionsView({
     const matchCategory = selectedCategory === 'ALL' || tx.category.toLowerCase() === selectedCategory.toLowerCase();
     const matchStatus = selectedStatus === 'ALL' || tx.status === selectedStatus;
     const matchType = selectedType === 'ALL' || tx.type === selectedType;
-    const matchDate = !filterDate || tx.date === filterDate;
+    const matchDate = (!startDate || tx.date >= startDate) && (!endDate || tx.date <= endDate);
 
     return matchSearch && matchCategory && matchStatus && matchType && matchDate;
   });
@@ -79,15 +84,15 @@ export default function TransactionsView({
     setSelectedCategory('ALL');
     setSelectedStatus('ALL');
     setSelectedType('ALL');
-    setFilterDate('');
+    setStartDate('');
+    setEndDate('');
   };
 
   return (
     <div className="flex-1 overflow-y-auto no-scrollbar pb-24 p-4 space-y-4">
       {/* Search and Filters panel */}
-      <div className={`p-4 rounded-3xl border transition-all-300 space-y-3 ${
-        darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
-      }`}>
+      <div className={`p-4 rounded-3xl border transition-all-300 space-y-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+        }`}>
         <h3 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Search Ledger</h3>
 
         {/* Search Input */}
@@ -98,23 +103,21 @@ export default function TransactionsView({
             placeholder="Search description, staff, or tag..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={`w-full py-2 pl-10 pr-4 text-xs rounded-xl border outline-none transition-all-300 ${
-              darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-            }`}
+            className={`w-full py-2 pl-10 pr-4 text-xs rounded-xl border outline-none transition-all-300 ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+              }`}
           />
         </div>
 
         {/* Filters Select Grid */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
           {/* Category Dropdown */}
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Category</span>
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className={`w-full p-2 text-xs rounded-xl border outline-none ${
-                darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-700'
-              }`}
+              className={`w-full p-2 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}
             >
               <option value="ALL">All Categories</option>
               {categories.map((cat) => (
@@ -131,9 +134,8 @@ export default function TransactionsView({
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className={`w-full p-2 text-xs rounded-xl border outline-none ${
-                darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-              }`}
+              className={`w-full p-2 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                }`}
             >
               <option value="ALL">All Flows</option>
               <option value="INCOME">Income / Allocation</option>
@@ -141,18 +143,15 @@ export default function TransactionsView({
               <option value="RETURN">Cash Return</option>
             </select>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-2">
           {/* Status Dropdown */}
           <div className="space-y-1">
             <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Status</span>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className={`w-full p-2 text-xs rounded-xl border outline-none ${
-                darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-              }`}
+              className={`w-full p-2 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                }`}
             >
               <option value="ALL">All Status</option>
               <option value="APPROVED">Approved</option>
@@ -160,26 +159,34 @@ export default function TransactionsView({
               <option value="REJECTED">Rejected</option>
             </select>
           </div>
+        </div>
 
-          {/* Date Picker Filter */}
+        <div className="mt-2">
+          {/* Date Picker Filters */}
           <div className="space-y-1">
-            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Date</span>
-            <div className="relative">
-              <Calendar className="absolute right-3 top-2.5 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider font-mono">Date Range</span>
+            <div className="flex items-center gap-2">
               <input
                 type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className={`w-full p-1.5 pr-8 text-xs rounded-xl border outline-none ${
-                  darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                }`}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className={`w-full p-1.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
+              />
+              <span className="text-slate-400">-</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={`w-full p-1.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                  }`}
               />
             </div>
           </div>
         </div>
 
         {/* Clear Filter Indicator */}
-        {(searchTerm || selectedCategory !== 'ALL' || selectedStatus !== 'ALL' || selectedType !== 'ALL' || filterDate) && (
+        {(searchTerm || selectedCategory !== 'ALL' || selectedStatus !== 'ALL' || selectedType !== 'ALL' || startDate || endDate) && (
           <button
             onClick={handleClearFilters}
             className="text-[10px] text-blue-500 font-semibold flex items-center gap-1 mt-1 hover:underline"
@@ -219,26 +226,24 @@ export default function TransactionsView({
                 <div
                   key={tx.id}
                   onClick={() => setSelectedTxDetails(tx)}
-                  className={`p-3.5 rounded-2xl border transition-all-300 flex items-center justify-between cursor-pointer hover:scale-[1.01] ${
-                    darkMode
-                      ? 'bg-slate-900 border-slate-800 hover:bg-slate-850'
-                      : 'bg-white border-slate-100 hover:bg-slate-50'
-                  }`}
+                  className={`p-3.5 rounded-2xl border transition-all-300 flex items-center justify-between cursor-pointer hover:scale-[1.01] ${darkMode
+                    ? 'bg-slate-900 border-slate-800 hover:bg-slate-850'
+                    : 'bg-white border-slate-100 hover:bg-slate-50'
+                    }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-9.5 h-9.5 rounded-xl flex items-center justify-center font-bold text-xs ${
-                      isIncome
-                        ? 'bg-emerald-500/10 text-emerald-500'
-                        : isReturn
+                    <div className={`w-9.5 h-9.5 rounded-xl flex items-center justify-center font-bold text-xs ${isIncome
+                      ? 'bg-emerald-500/10 text-emerald-500'
+                      : isReturn
                         ? 'bg-purple-500/10 text-purple-500'
                         : tx.status === 'APPROVED'
-                        ? 'bg-blue-500/10 text-blue-500'
-                        : tx.status === 'REJECTED'
-                        ? 'bg-red-500/10 text-red-500'
-                        : tx.status === 'NEEDS_CORRECTION'
-                        ? 'bg-rose-500/10 text-rose-500'
-                        : 'bg-amber-500/10 text-amber-500'
-                    }`}>
+                          ? 'bg-blue-500/10 text-blue-500'
+                          : tx.status === 'REJECTED'
+                            ? 'bg-red-500/10 text-red-500'
+                            : tx.status === 'NEEDS_CORRECTION'
+                              ? 'bg-rose-500/10 text-rose-500'
+                              : 'bg-amber-500/10 text-amber-500'
+                      }`}>
                       {isIncome ? '+' : isReturn ? 'R' : tx.category[0]}
                     </div>
 
@@ -274,9 +279,8 @@ export default function TransactionsView({
                   </div>
 
                   <div className="text-right flex flex-col items-end gap-1">
-                    <span className={`text-xs font-mono font-bold ${
-                      isIncome ? 'text-emerald-500' : isReturn ? 'text-purple-500' : 'text-red-500'
-                    }`}>
+                    <span className={`text-xs font-mono font-bold ${isIncome ? 'text-emerald-500' : isReturn ? 'text-purple-500' : 'text-red-500'
+                      }`}>
                       {isIncome ? '+' : isReturn ? '+' : '-'}Rs. {tx.amount.toLocaleString()}
                     </span>
 
@@ -343,9 +347,8 @@ export default function TransactionsView({
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            className={`w-full max-w-md rounded-t-[32px] p-6 border-t shadow-2xl relative transition-all duration-300 ${
-              darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            className={`w-full max-w-md rounded-t-[32px] p-6 border-t shadow-2xl relative transition-all duration-300 ${darkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}
           >
             {/* Grabber handle */}
             <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-4" />
@@ -367,9 +370,8 @@ export default function TransactionsView({
                   <div className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">
                     Amount Value
                   </div>
-                  <div className={`text-2xl font-bold font-mono mt-0.5 ${
-                    selectedTxDetails.type === 'INCOME' ? 'text-emerald-500' : selectedTxDetails.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'
-                  }`}>
+                  <div className={`text-2xl font-bold font-mono mt-0.5 ${selectedTxDetails.type === 'INCOME' ? 'text-emerald-500' : selectedTxDetails.type === 'RETURN' ? 'text-purple-500' : 'text-red-500'
+                    }`}>
                     {selectedTxDetails.type === 'INCOME' ? '+' : selectedTxDetails.type === 'RETURN' ? '+' : '-'}Rs. {selectedTxDetails.amount.toLocaleString()}
                   </div>
                 </div>
@@ -410,15 +412,15 @@ export default function TransactionsView({
                     {selectedTxDetails.type === 'EXPENSE' ? 'Site Name' : 'Flow Type'}
                   </span>
                   <span className="font-bold mt-1 block">
-                    {selectedTxDetails.type === 'INCOME' 
-                      ? 'Allocation Inflow' 
-                      : selectedTxDetails.type === 'RETURN' 
-                        ? 'Cash Return' 
-                        : (selectedTxDetails.description.match(/^\[(.*?)\]/) 
-                            ? selectedTxDetails.description.match(/^\[(.*?)\]/)?.[1] 
-                            : (selectedTxDetails.description.match(/at (.*?) from/) 
-                                ? selectedTxDetails.description.match(/at (.*?) from/)?.[1] 
-                                : 'Unknown Site'))}
+                    {selectedTxDetails.type === 'INCOME'
+                      ? 'Allocation Inflow'
+                      : selectedTxDetails.type === 'RETURN'
+                        ? 'Cash Return'
+                        : (selectedTxDetails.description.match(/^\[(.*?)\]/)
+                          ? selectedTxDetails.description.match(/^\[(.*?)\]/)?.[1]
+                          : (selectedTxDetails.description.match(/at (.*?) from/)
+                            ? selectedTxDetails.description.match(/at (.*?) from/)?.[1]
+                            : 'Unknown Site'))}
                   </span>
                 </div>
                 <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-850">
@@ -446,8 +448,8 @@ export default function TransactionsView({
                   {selectedTxDetails.category === 'STAFF_TRANSFER' ? (() => {
                     try {
                       const state = JSON.parse(selectedTxDetails.description);
-                      return selectedTxDetails.type === 'INCOME' 
-                        ? `Received from ${selectedTxDetails.supervisorName}` 
+                      return selectedTxDetails.type === 'INCOME'
+                        ? `Received from ${selectedTxDetails.supervisorName}`
                         : `Transfer to ${state.receiverName}`;
                     } catch { return selectedTxDetails.description; }
                   })() : selectedTxDetails.category === 'Allocation' ? (() => {
@@ -515,9 +517,8 @@ export default function TransactionsView({
                       onReviewTransaction(selectedTxDetails.id, 'APPROVED');
                       setSelectedTxDetails(null);
                     }}
-                    className={`flex-1 py-2.5 rounded-xl text-white font-medium text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform ${
-                      selectedTxDetails.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                    }`}
+                    className={`flex-1 py-2.5 rounded-xl text-white font-medium text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform ${selectedTxDetails.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                      }`}
                   >
                     <CheckCircle className="w-4 h-4" />
                     <span>{selectedTxDetails.type === 'RETURN' ? 'Accept Return' : 'Approve Claims'}</span>
@@ -537,14 +538,13 @@ export default function TransactionsView({
 
               {isOwner && selectedTxDetails.status === 'NEEDS_CORRECTION' && selectedTxDetails.category === 'Allocation' && (
                 <div className="flex items-center gap-2 pt-2">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     placeholder="New Amount"
                     id={`edit-alloc-modal-${selectedTxDetails.id}`}
                     defaultValue={selectedTxDetails.amount}
-                    className={`flex-1 p-2.5 text-xs rounded-xl border outline-none font-bold ${
-                      darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
+                    className={`flex-1 p-2.5 text-xs rounded-xl border outline-none font-bold ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}
                   />
                   <button
                     onClick={() => {

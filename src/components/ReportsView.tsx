@@ -33,7 +33,7 @@ interface ReportsViewProps {
   onApproveDaily?: (supervisorId: string, date: string) => void;
   initialSupFilter?: string;
   initialReportType?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'DATE_RANGE' | 'SUPERVISOR';
-  onChartClick?: (filterType: 'CATEGORY' | 'STAFF' | 'SITE', name: string) => void;
+  onChartClick?: (filterType: 'CATEGORY' | 'STAFF' | 'SITE' | 'SUPPLIER', name: string, startDate?: string, endDate?: string) => void;
   categories: {name: string, icon: string, color: string}[];
 }
 
@@ -57,7 +57,12 @@ export default function ReportsView({
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [supervisorDate, setSupervisorDate] = useState(new Date().toISOString().split('T')[0]);
+  const [supervisorStartDate, setSupervisorStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 15);
+    return d.toISOString().split('T')[0];
+  });
+  const [supervisorEndDate, setSupervisorEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedSupFilter, setSelectedSupFilter] = useState(initialSupFilter || 'ALL');
 
   const [showMistakeForm, setShowMistakeForm] = useState(false);
@@ -90,7 +95,7 @@ export default function ReportsView({
       const firstDayStr = firstDay.toISOString().split('T')[0];
       matchDateRange = t.date >= firstDayStr && t.date <= todayStr;
     } else if (reportType === 'SUPERVISOR') {
-      matchDateRange = t.date === supervisorDate;
+      matchDateRange = t.date >= supervisorStartDate && t.date <= supervisorEndDate;
     }
 
     // 3. Supervisor Selector
@@ -101,6 +106,24 @@ export default function ReportsView({
 
     return matchPermission && matchDateRange && matchSup;
   });
+
+  const getComputedDateBounds = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    if (reportType === 'DATE_RANGE') return { start: startDate, end: endDate };
+    if (reportType === 'DAILY') return { start: todayStr, end: todayStr };
+    if (reportType === 'WEEKLY') {
+      const lastWeek = new Date();
+      lastWeek.setDate(today.getDate() - 7);
+      return { start: lastWeek.toISOString().split('T')[0], end: todayStr };
+    }
+    if (reportType === 'MONTHLY') {
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { start: firstDay.toISOString().split('T')[0], end: todayStr };
+    }
+    if (reportType === 'SUPERVISOR') return { start: supervisorStartDate, end: supervisorEndDate };
+    return { start: undefined, end: undefined };
+  };
 
   // Calculate Metrics
   const expenses = reportTransactions.filter((t) => t.type === 'EXPENSE' && t.status === 'APPROVED');
@@ -144,6 +167,31 @@ export default function ReportsView({
     }
   });
   const actualSiteChartData = Object.entries(siteChartMap)
+    .map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  // Group Expenses by Supplier for Charts
+  const supplierChartMap: Record<string, number> = {};
+  reportTransactions.forEach((t) => {
+    if (t.type === 'EXPENSE' && t.status === 'APPROVED') {
+      let supplier = 'Other';
+      if (t.supplier) {
+        supplier = t.supplier;
+      } else {
+        const bracketMatch = t.description.match(/^\[.*?\]\s*\{(.*?)\}/);
+        if (bracketMatch) {
+          supplier = bracketMatch[1];
+        } else {
+          const spentMatch = t.description.match(/from (.*)$/);
+          if (spentMatch) {
+            supplier = spentMatch[1];
+          }
+        }
+      }
+      supplierChartMap[supplier] = (supplierChartMap[supplier] || 0) + t.amount;
+    }
+  });
+  const actualSupplierChartData = Object.entries(supplierChartMap)
     .map(([name, amount]) => ({ name, amount }))
     .sort((a, b) => b.amount - a.amount);
 
@@ -464,15 +512,27 @@ export default function ReportsView({
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">Audit Date</span>
-              <input
-                type="date"
-                value={supervisorDate}
-                onChange={(e) => setSupervisorDate(e.target.value)}
-                className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
-                  }`}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">Start Date</span>
+                <input
+                  type="date"
+                  value={supervisorStartDate}
+                  onChange={(e) => setSupervisorStartDate(e.target.value)}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-semibold text-slate-400 font-mono uppercase tracking-wider">End Date</span>
+                <input
+                  type="date"
+                  value={supervisorEndDate}
+                  onChange={(e) => setSupervisorEndDate(e.target.value)}
+                  className={`w-full p-2.5 text-xs rounded-xl border outline-none ${darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
+                    }`}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -537,7 +597,10 @@ export default function ReportsView({
                 <div 
                   key={idx} 
                   className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
-                  onClick={() => onChartClick?.('CATEGORY', cat.name)}
+                  onClick={() => {
+                    const bounds = getComputedDateBounds();
+                    onChartClick?.('CATEGORY', cat.name, bounds.start, bounds.end);
+                  }}
                 >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
@@ -575,7 +638,10 @@ export default function ReportsView({
                 <div 
                   key={idx} 
                   className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
-                  onClick={() => onChartClick?.('STAFF', staff.name)}
+                  onClick={() => {
+                    const bounds = getComputedDateBounds();
+                    onChartClick?.('STAFF', staff.name, bounds.start, bounds.end);
+                  }}
                 >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
@@ -613,7 +679,10 @@ export default function ReportsView({
                 <div 
                   key={idx} 
                   className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
-                  onClick={() => onChartClick?.('SITE', site.name)}
+                  onClick={() => {
+                    const bounds = getComputedDateBounds();
+                    onChartClick?.('SITE', site.name, bounds.start, bounds.end);
+                  }}
                 >
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-bold flex items-center gap-1.5">
@@ -628,6 +697,47 @@ export default function ReportsView({
                     <div
                       style={{ width: `${pct}%` }}
                       className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Allocation Chart */}
+      {actualSupplierChartData.length > 0 && (
+        <div className={`p-4 rounded-3xl border transition-all-300 space-y-3.5 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
+          <h4 className="text-xs font-mono tracking-widest text-slate-400 uppercase">Supplier Allocation Chart</h4>
+
+          <div className="space-y-3">
+            {actualSupplierChartData.map((supplier, idx) => {
+              const pct = Math.round((supplier.amount / totalSpent) * 100);
+
+              return (
+                <div 
+                  key={idx} 
+                  className="space-y-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 p-1.5 -mx-1.5 rounded-lg transition-colors"
+                  onClick={() => {
+                    const bounds = getComputedDateBounds();
+                    onChartClick?.('SUPPLIER', supplier.name, bounds.start, bounds.end);
+                  }}
+                >
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-orange-500" />
+                      <span>{supplier.name}</span>
+                    </span>
+                    <span className="font-mono text-slate-500">
+                      Rs. {supplier.amount.toLocaleString()} ({pct}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${pct}%` }}
+                      className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full"
                     />
                   </div>
                 </div>
