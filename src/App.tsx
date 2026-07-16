@@ -1269,7 +1269,10 @@ export default function App() {
                           onAllocateCash={handleAllocateCash}
                           onAddSupervisor={handleAddSupervisor}
                           onReviewTransaction={handleReviewTransaction}
-                          onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
+                          onViewTransactionDetails={(tx) => {
+                            setSelectedTxDetails(tx);
+                            setActiveScreen('TRANSACTIONS');
+                          }}
                           onEditStaff={handleEditStaff}
                           onRemoveStaff={handleRemoveStaff}
                           onCreateTransfer={handleCreateTransfer}
@@ -1288,7 +1291,10 @@ export default function App() {
                           balances={balances}
                           transactions={transactions}
                           darkMode={darkMode}
-                          onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
+                          onViewTransactionDetails={(tx) => {
+                            setSelectedTxDetails(tx);
+                            setActiveScreen('TRANSACTIONS');
+                          }}
                           onNavigate={(screen) => setActiveScreen(screen)}
                           onViewStaffAudit={(staffId) => {
                             setReportStaffFilter(staffId);
@@ -1309,7 +1315,10 @@ export default function App() {
                           onReturnCashClick={() => setActiveScreen('RETURN_CASH')}
                           onCollectCashClick={() => setActiveScreen('COLLECT_CASH')}
                           onRequestCashClick={() => setActiveScreen('REQUEST_CASH')}
-                          onViewTransactionDetails={(tx) => setSelectedTxDetails(tx)}
+                          onViewTransactionDetails={(tx) => {
+                            setSelectedTxDetails(tx);
+                            setActiveScreen('TRANSACTIONS');
+                          }}
                           onEditExpense={(tx) => {
                             setSelectedTxDetails(tx);
                             setActiveScreen('EDIT_EXPENSE');
@@ -1369,6 +1378,7 @@ export default function App() {
                           onCollectCash={handleCollectCash}
                           onCancel={() => setActiveScreen('SUPERVISOR_DASHBOARD')}
                           darkMode={darkMode}
+                          sites={sites}
                         />
                       )}
 

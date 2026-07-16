@@ -82,7 +82,10 @@ export default function OwnerDashboardView({
   const [allocNotes, setAllocNotes] = useState('');
   const [allocPaymentMethod, setAllocPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH');
   const [allocBankName, setAllocBankName] = useState('');
-  const [bankList, setBankList] = useState(['HDFC']);
+  const [bankList, setBankList] = useState<string[]>(() => {
+    const saved = localStorage.getItem('pc_bank_list');
+    return saved ? JSON.parse(saved) : ['HDFC'];
+  });
   const [showNewBankForm, setShowNewBankForm] = useState(false);
   const [newBankName, setNewBankName] = useState('');
 
@@ -159,6 +162,7 @@ export default function OwnerDashboardView({
 
     const expenses = transactions.filter(t => {
       if (t.type !== 'EXPENSE' || t.status !== 'APPROVED') return false;
+      if (t.category === 'STAFF_TRANSFER' || t.category === 'Allocation') return false;
       if (timeFilter === 'DAILY') return t.date === todayStr;
       if (timeFilter === 'WEEKLY') return t.date >= weekStr;
       if (timeFilter === 'MONTHLY') return t.date.startsWith(monthPrefix);
@@ -205,8 +209,7 @@ export default function OwnerDashboardView({
 
     return Object.entries(grouped)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5
+      .sort((a, b) => b.value - a.value);
   };
   const chartData = getChartData();
   const CHART_COLORS = ['#14b8a6', '#0ea5e9', '#8b5cf6', '#ec4899', '#f59e0b'];
@@ -398,34 +401,36 @@ export default function OwnerDashboardView({
         </div>
         
         {chartData.length > 0 ? (
-          <div className="h-36 w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
-                  tickFormatter={(val) => `₹${val > 1000 ? (val/1000).toFixed(0)+'k' : val}`}
-                />
-                <Tooltip 
-                  cursor={{ fill: darkMode ? '#1e293b' : '#f1f5f9' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: darkMode ? '#0f172a' : '#fff' }}
-                  itemStyle={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: 'bold' }}
-                  formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, 'Amount']}
-                />
-                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="h-36 w-full mt-2 overflow-x-auto no-scrollbar">
+            <div style={{ minWidth: `${Math.max(100, chartData.length * 25)}%`, height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 10, fill: darkMode ? '#94a3b8' : '#64748b' }} 
+                    tickFormatter={(val) => `₹${val > 1000 ? (val/1000).toFixed(0)+'k' : val}`}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: darkMode ? '#1e293b' : '#f1f5f9' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', backgroundColor: darkMode ? '#0f172a' : '#fff' }}
+                    itemStyle={{ color: darkMode ? '#f8fafc' : '#0f172a', fontWeight: 'bold' }}
+                    formatter={(value: number) => [`Rs. ${value.toLocaleString()}`, 'Amount']}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         ) : (
           <div className="h-36 w-full flex items-center justify-center border-2 border-dashed rounded-xl border-slate-200 dark:border-slate-800">
@@ -507,8 +512,9 @@ export default function OwnerDashboardView({
               <motion.div
                 key={tx.id}
                 layoutId={tx.id}
-                className={`p-3.5 rounded-2xl border transition-all-300 flex flex-col gap-3 ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+                className={`p-3.5 rounded-2xl border transition-all-300 flex flex-col gap-3 cursor-pointer hover:scale-[1.01] ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
                   }`}
+                onClick={() => onViewTransactionDetails(tx)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-2.5">
@@ -543,7 +549,7 @@ export default function OwnerDashboardView({
                     </div>
                     {tx.receiptUrl && (
                       <button
-                        onClick={() => onViewTransactionDetails(tx)}
+                        onClick={(e) => { e.stopPropagation(); onViewTransactionDetails(tx); }}
                         className="text-[10px] text-blue-500 font-semibold hover:underline mt-1 inline-flex items-center gap-0.5 cursor-pointer"
                       >
                         <span>Receipt</span>
@@ -565,12 +571,14 @@ export default function OwnerDashboardView({
                         placeholder="New Amount"
                         id={`edit-alloc-${tx.id}`}
                         defaultValue={tx.amount}
+                        onClick={(e) => e.stopPropagation()}
                         className={`flex-1 p-2 text-xs rounded-xl border outline-none ${
                           darkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-slate-50 border-slate-200'
                         }`}
                       />
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           const input = document.getElementById(`edit-alloc-${tx.id}`) as HTMLInputElement;
                           const newAmount = Number(input.value);
                           if (newAmount > 0 && onEditAllocation) {
@@ -586,7 +594,7 @@ export default function OwnerDashboardView({
                 ) : (
                   <div className="flex items-center gap-2 border-t border-slate-100 dark:border-slate-800/60 pt-2.5 mt-0.5">
                     <button
-                      onClick={() => onReviewTransaction(tx.id, 'APPROVED')}
+                      onClick={(e) => { e.stopPropagation(); onReviewTransaction(tx.id, 'APPROVED'); }}
                       className={`flex-1 py-1.5 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${tx.type === 'INCOME' ? 'bg-emerald-600 hover:bg-emerald-700' : tx.type === 'RETURN' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
                         }`}
                     >
@@ -594,7 +602,7 @@ export default function OwnerDashboardView({
                       <span>{tx.category === 'CASH_REQUEST' ? 'Approve Request' : tx.type === 'INCOME' ? 'Approve Collection' : tx.type === 'RETURN' ? 'Accept Return' : 'Approve Purchase'}</span>
                     </button>
                     <button
-                      onClick={() => onReviewTransaction(tx.id, 'REJECTED')}
+                      onClick={(e) => { e.stopPropagation(); onReviewTransaction(tx.id, 'REJECTED'); }}
                       className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center justify-center gap-1 active:scale-[0.98] transition-transform cursor-pointer ${darkMode
                         ? 'border-slate-800 hover:bg-red-500/10 hover:text-red-500 text-slate-400'
                         : 'border-slate-200 hover:bg-red-50 hover:text-red-600 text-slate-500'
@@ -1186,7 +1194,9 @@ export default function OwnerDashboardView({
                               const trimmed = newBankName.trim();
                               if (trimmed) {
                                 if (!bankList.some(b => b.toLowerCase() === trimmed.toLowerCase())) {
-                                  setBankList([...bankList, trimmed]);
+                                  const newList = [...bankList, trimmed];
+                                  setBankList(newList);
+                                  localStorage.setItem('pc_bank_list', JSON.stringify(newList));
                                 }
                                 setAllocBankName(trimmed);
                                 setNewBankName('');
@@ -1204,7 +1214,9 @@ export default function OwnerDashboardView({
                             const trimmed = newBankName.trim();
                             if (trimmed) {
                               if (!bankList.some(b => b.toLowerCase() === trimmed.toLowerCase())) {
-                                setBankList([...bankList, trimmed]);
+                                const newList = [...bankList, trimmed];
+                                setBankList(newList);
+                                localStorage.setItem('pc_bank_list', JSON.stringify(newList));
                               }
                               setAllocBankName(trimmed);
                               setNewBankName('');

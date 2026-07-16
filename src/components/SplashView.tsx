@@ -43,7 +43,7 @@ export default function SplashView({ onComplete }: SplashViewProps) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.5, duration: 0.8 }}
-          className="text-5xl font-display font-bold tracking-tight mb-2"
+          className="text-5xl font-sans font-black tracking-tight mb-2"
           style={{ background: 'linear-gradient(135deg, #4ADE80, #22C55E, #16A34A)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
         >
           RunB

@@ -82,7 +82,7 @@ export default function LoginView({ onLoginSuccess, onGoToSignup, darkMode }: Lo
         <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-3" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
           <img src={runbLogo} alt="RunB" className="w-14 h-14 object-contain" />
         </div>
-        <h2 className="text-3xl font-display font-bold tracking-tight text-center" style={{ background: 'linear-gradient(135deg, #4ADE80, #22C55E)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h2 className="text-3xl font-sans font-black tracking-tight text-center" style={{ background: 'linear-gradient(135deg, #4ADE80, #22C55E)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           RunB
         </h2>
         <p className="text-xs text-slate-400 text-center font-medium mt-1 uppercase tracking-widest">

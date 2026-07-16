@@ -226,7 +226,7 @@ export default function SupervisorDashboardView({
                 <div className="text-xl font-bold font-mono text-amber-500">
                   Rs. {totalPendingSpent.toLocaleString()}
                 </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">Waiting for owner review</span>
+                <span className="text-[10px] text-slate-400 mt-1 block">Pending review</span>
               </div>
             </div>
           </div>
