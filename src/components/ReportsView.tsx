@@ -240,7 +240,8 @@ export default function ReportsView({
     let voucher = '';
     let nature = '';
     let narration = t.description;
-    let site = t.supervisorName;
+    let site = '-';
+    let vendor = t.supplier || '-';
     let debit = '';
     let credit = '';
 
@@ -248,7 +249,6 @@ export default function ReportsView({
       voucher = 'Contra';
       nature = 'Inter company transfer - owner to Staff';
       debit = `${t.supervisorName} Cash`;
-      site = 'Site Provided by the owner';
       try {
         const d = JSON.parse(t.description);
         narration = d.note || 'Allocation';
@@ -259,7 +259,6 @@ export default function ReportsView({
     } else if (t.category === 'STAFF_TRANSFER') {
       voucher = 'Contra';
       nature = 'Inter company transfer - Staff to Staff';
-      site = 'Site Provided by the staff';
       try {
         const state = JSON.parse(t.description);
         narration = state.note || 'Transfer';
@@ -279,22 +278,23 @@ export default function ReportsView({
       nature = 'Inter company transfer - Staff to owner';
       debit = 'Owner Cash/Bank';
       credit = `${t.supervisorName} Cash`;
-      site = 'Site Provided by the staff';
     } else if (t.type === 'EXPENSE') {
       voucher = 'Payment';
       nature = 'Expense claim by Staff';
       debit = t.category;
       credit = `${t.supervisorName} Cash`;
 
-      // Extract site name from description if present
-      const bracketMatch = t.description.match(/^\[(.*?)\]\s*(.*)$/);
+      // Extract site and supplier name from description if present
+      const bracketMatch = t.description.match(/^\[(.*?)\](?:\s*\{(.*?)\})?\s*(.*)$/);
       if (bracketMatch) {
         site = bracketMatch[1];
-        narration = bracketMatch[2];
+        if (bracketMatch[2]) vendor = bracketMatch[2];
+        narration = bracketMatch[3] || bracketMatch[2]; // fallback narration
       } else {
-        const spentMatch = t.description.match(/Spent on .* at (.*)$/);
+        const spentMatch = t.description.match(/Spent on .* at (.*?)(?: from (.*))?$/);
         if (spentMatch) {
-          site = spentMatch[1];
+          site = spentMatch[1].trim();
+          if (spentMatch[2]) vendor = spentMatch[2].trim();
         }
       }
     } else if (t.type === 'INCOME') {
@@ -302,7 +302,6 @@ export default function ReportsView({
       nature = 'Receipt from person outside the entity';
       debit = `${t.supervisorName} Cash`;
       credit = t.category || 'External Source';
-      site = 'Site Provided by the staff';
     }
 
     const formattedDate = t.date.split('-').reverse().join('/');
@@ -313,6 +312,7 @@ export default function ReportsView({
       nature,
       narration,
       site,
+      vendor,
       debit,
       credit,
       t.amount,
@@ -327,6 +327,7 @@ export default function ReportsView({
     'Nature of Transaction',
     'Narration',
     'Site',
+    'Vendor',
     'Debit Ledger',
     'Credit Ledger',
     'Amount',
@@ -338,7 +339,7 @@ export default function ReportsView({
   const handleExportExcel = () => {
     const rows = reportTransactions.map(generateLedgerRow);
     const totalBalance = totalAllocated - totalSpent;
-    rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', totalBalance, '', '']);
+    rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', '', totalBalance, '', '']);
 
     const worksheet = XLSX.utils.aoa_to_sheet([ledgerHeaders, ...rows]);
     const workbook = XLSX.utils.book_new();
@@ -358,7 +359,7 @@ export default function ReportsView({
 
     const rows = reportTransactions.map(generateLedgerRow);
     const totalBalance = totalAllocated - totalSpent;
-    rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', totalBalance, '', '']);
+    rows.push(['', '', '', '', 'TOTAL BALANCE:', '', '', '', totalBalance, '', '']);
 
     autoTable(doc, {
       startY: 35,
@@ -371,13 +372,13 @@ export default function ReportsView({
         if (cellData.section === 'body') {
           const rowData = cellData.row.raw;
           // Red text for Expenses
-          if (rowData[2] === 'EXPENSE' && cellData.column.index === 5) {
+          if (rowData[2] === 'EXPENSE' && cellData.column.index === 6) {
             cellData.cell.styles.textColor = [220, 38, 38];
           }
           // Bold style for Total Balance row
           if (rowData[4] === 'TOTAL BALANCE:') {
             cellData.cell.styles.fontStyle = 'bold';
-            if (cellData.column.index === 5) {
+            if (cellData.column.index === 6) {
               cellData.cell.styles.textColor = totalBalance >= 0 ? [16, 185, 129] : [220, 38, 38];
             }
           }
