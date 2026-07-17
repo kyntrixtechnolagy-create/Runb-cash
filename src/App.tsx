@@ -59,7 +59,7 @@ export default function App() {
   const [balances, setBalances] = useState<SupervisorBalance[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [reportStaffFilter, setReportStaffFilter] = useState<string | null>(null);
-  
+
   const [txSearchFilter, setTxSearchFilter] = useState<string>('');
   const [txCategoryFilter, setTxCategoryFilter] = useState<string>('ALL');
   const [txStartDate, setTxStartDate] = useState<string>('');
@@ -67,7 +67,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme-preference') === 'dark');
 
   // Dynamic Settings (Categories, Sites, Suppliers)
-  const [categories, setCategories] = useState<{name: string, icon: string, color: string}[]>(() => {
+  const [categories, setCategories] = useState<{ name: string, icon: string, color: string }[]>(() => {
     const saved = localStorage.getItem('pc_categories');
     return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
   });
@@ -84,7 +84,7 @@ export default function App() {
     setCategories(newCategories);
     setSites(newSites);
     setSuppliers(newSuppliers);
-    
+
     // Fallback local storage for immediate offline feel
     localStorage.setItem('pc_categories', JSON.stringify(newCategories));
     localStorage.setItem('pc_sites', JSON.stringify(newSites));
@@ -190,9 +190,9 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const currentScreen = activeScreenRef.current;
-      const isDashboard = 
-        currentScreen === 'OWNER_DASHBOARD' || 
-        currentScreen === 'SUPERVISOR_DASHBOARD' || 
+      const isDashboard =
+        currentScreen === 'OWNER_DASHBOARD' ||
+        currentScreen === 'SUPERVISOR_DASHBOARD' ||
         currentScreen === 'AUDITOR_DASHBOARD' ||
         currentScreen === 'SPLASH' ||
         currentScreen === 'LOGIN' ||
@@ -213,7 +213,7 @@ export default function App() {
   useEffect(() => {
     const prev = prevScreenRef.current;
     const curr = activeScreen;
-    
+
     const isPrevDashboard = prev === 'OWNER_DASHBOARD' || prev === 'SUPERVISOR_DASHBOARD' || prev === 'AUDITOR_DASHBOARD';
     const isCurrDashboard = curr === 'OWNER_DASHBOARD' || curr === 'SUPERVISOR_DASHBOARD' || curr === 'AUDITOR_DASHBOARD';
 
@@ -222,7 +222,7 @@ export default function App() {
     if (isPrevDashboard && !isCurrDashboard) {
       window.history.pushState({ subScreen: true }, '', '');
     }
-    
+
     prevScreenRef.current = curr;
   }, [activeScreen]);
 
@@ -1086,15 +1086,15 @@ export default function App() {
   const getPendingNotificationsCount = () => {
     if (!currentUser) return 0;
     if (currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR') {
-      return transactions.filter(t => 
-        (t.type === 'EXPENSE' && t.status === 'PENDING') || 
+      return transactions.filter(t =>
+        (t.type === 'EXPENSE' && t.status === 'PENDING') ||
         (t.category === 'STAFF_TRANSFER' && t.status === 'PENDING')
       ).length;
     } else {
-      return transactions.filter(t => 
-        t.supervisorId === currentUser.id && 
+      return transactions.filter(t =>
+        t.supervisorId === currentUser.id &&
         ((t.type === 'EXPENSE' && (t.status === 'REJECTED' || t.status === 'NEEDS_CORRECTION')) ||
-         (t.category === 'Allocation' && t.status === 'PENDING'))
+          (t.category === 'Allocation' && t.status === 'PENDING'))
       ).length;
     }
   };
@@ -1248,8 +1248,8 @@ export default function App() {
                       {isAppLoading && (
                         <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm">
                           <div className="flex flex-col items-center bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-800">
-                             <RefreshCw className="w-8 h-8 animate-spin text-green-500 mb-3" />
-                             <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Loading Data...</p>
+                            <RefreshCw className="w-8 h-8 animate-spin text-green-500 mb-3" />
+                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Loading Data...</p>
                           </div>
                         </div>
                       )}
@@ -1453,7 +1453,7 @@ export default function App() {
               <AnimatePresence>
                 {showNotificationsModal && (
                   <div className="absolute inset-0 z-[100] flex flex-col justify-end">
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -1464,9 +1464,8 @@ export default function App() {
                       initial={{ y: "100%" }}
                       animate={{ y: 0 }}
                       exit={{ y: "100%" }}
-                      className={`w-full max-h-[80%] overflow-y-auto rounded-t-[32px] p-6 shadow-2xl relative transition-colors duration-300 ${
-                        darkMode ? 'bg-slate-900 border-t border-slate-800 text-white' : 'bg-white text-slate-900'
-                      }`}
+                      className={`w-full max-h-[80%] overflow-y-auto rounded-t-[32px] p-6 shadow-2xl relative transition-colors duration-300 ${darkMode ? 'bg-slate-900 border-t border-slate-800 text-white' : 'bg-white text-slate-900'
+                        }`}
                     >
                       <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-4" />
                       <div className="flex items-center justify-between mb-4">
@@ -1478,7 +1477,7 @@ export default function App() {
                           <X className="w-5 h-5" />
                         </button>
                       </div>
-                      
+
                       <div className="space-y-3">
                         {(() => {
                           const items = currentUser ? (currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR'
@@ -1487,29 +1486,39 @@ export default function App() {
                           ) : [];
 
                           return items.length > 0 ? items.map(item => (
-                            <div 
+                            <div
                               key={item.id}
                               onClick={() => {
                                 setShowNotificationsModal(false);
                                 setSelectedTxDetails(item);
                                 setActiveScreen('TRANSACTIONS');
                               }}
-                              className={`p-3 rounded-2xl border cursor-pointer hover:scale-[1.02] transition-all flex items-center justify-between ${
-                                darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'
-                              }`}
+                              className={`p-3 rounded-2xl border cursor-pointer hover:scale-[1.02] transition-all flex items-center justify-between ${darkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'
+                                }`}
                             >
                               <div>
                                 <div className="text-sm font-bold">{item.category === 'Allocation' ? 'Incoming Allocation' : item.category === 'STAFF_TRANSFER' ? 'Staff Transfer' : 'Expense Approval'}</div>
-                                <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{item.description.replace(/\[.*?\]\s*\{.*?\}/, '').trim() || 'No description'}</div>
+                                <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+                                  {item.category === 'STAFF_TRANSFER' ? (() => {
+                                    try {
+                                      const state = JSON.parse(item.description);
+                                      return item.type === 'INCOME' ? `Received from ${item.supervisorName}` : `Transfer to ${state.receiverName}`;
+                                    } catch { return item.description; }
+                                  })() : item.category === 'Allocation' ? (() => {
+                                    try {
+                                      const d = JSON.parse(item.description);
+                                      return d.note;
+                                    } catch { return item.description; }
+                                  })() : item.description.replace(/\[.*?\]\s*\{.*?\}/, '').trim() || 'No description'}
+                                </div>
                                 <div className="text-[10px] text-slate-400 mt-1">{item.supervisorName} • {new Date(item.date).toLocaleDateString()}</div>
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-bold font-mono">Rs. {item.amount.toLocaleString()}</div>
-                                <div className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-1 ${
-                                  item.status === 'REJECTED' ? 'bg-red-100 text-red-600' : 
+                                <div className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-1 ${item.status === 'REJECTED' ? 'bg-red-100 text-red-600' :
                                   item.status === 'NEEDS_CORRECTION' ? 'bg-orange-100 text-orange-600' :
-                                  'bg-amber-100 text-amber-600'
-                                }`}>
+                                    'bg-amber-100 text-amber-600'
+                                  }`}>
                                   {item.status.replace('_', ' ')}
                                 </div>
                               </div>
