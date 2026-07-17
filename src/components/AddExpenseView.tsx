@@ -16,7 +16,7 @@ import {
   AlertCircle,
   Plus
 } from 'lucide-react';
-import { CATEGORIES, MOCK_RECEIPTS } from '../mockData';
+import { CATEGORIES } from '../mockData';
 
 interface AddExpenseViewProps {
   onSaveExpense: (data: {
@@ -74,10 +74,7 @@ export default function AddExpenseView({
     }
   };
 
-  const handleSelectMockReceipt = (name: string, url: string) => {
-    setReceiptName(name);
-    setReceiptUrl(url);
-  };
+
 
   const handleRemoveReceipt = () => {
     setReceiptName('');
@@ -164,7 +161,7 @@ export default function AddExpenseView({
           <ChevronLeft className="w-4.5 h-4.5" />
           <span>Go Back</span>
         </button>
-        <span className="text-sm font-bold font-display">Add a New Purchase</span>
+        <span className="text-sm font-bold font-display">Expense entry</span>
         <div className="w-14" /> {/* Spacer */}
       </div>
 
@@ -396,27 +393,7 @@ export default function AddExpenseView({
                 />
               </div>
 
-              {/* Quick Select Preset Receipt Images (Super helpful for prototyping) */}
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase block">Or click one of these sample receipts to try it out:</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {MOCK_RECEIPTS.map((m, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelectMockReceipt(m.name, m.url)}
-                      className={`p-2 rounded-xl border text-left text-[11px] font-bold transition-all duration-200 flex items-center gap-1.5 hover:scale-[1.01] ${
-                        darkMode
-                          ? 'bg-slate-900 border-slate-800 hover:bg-slate-800 text-white'
-                          : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-teal-500" />
-                      <span className="truncate">{m.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+
             </div>
           )}
         </div>

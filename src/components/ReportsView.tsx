@@ -838,8 +838,8 @@ export default function ReportsView({
         )}
       </div>
 
-      {/* Approve All / Mistake Workflow (Owner only, on specific staff) */}
-      {isOwner && reportType === 'SUPERVISOR' && selectedSupFilter !== 'ALL' && (
+      {/* Approve All / Mistake Workflow (Owner only, on specific staff, only for today) */}
+      {isOwner && reportType === 'SUPERVISOR' && selectedSupFilter !== 'ALL' && supervisorStartDate === new Date().toISOString().split('T')[0] && supervisorEndDate === new Date().toISOString().split('T')[0] && (
         <div className="pt-4 space-y-3">
           <div className="flex gap-3">
             <button
@@ -853,7 +853,7 @@ export default function ReportsView({
             </button>
             <button
               onClick={() => {
-                if (onApproveDaily) onApproveDaily(selectedSupFilter, supervisorDate);
+                if (onApproveDaily) onApproveDaily(selectedSupFilter, supervisorStartDate);
               }}
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all"
             >
