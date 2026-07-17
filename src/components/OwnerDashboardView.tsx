@@ -182,6 +182,9 @@ export default function OwnerDashboardView({
             key = 'Unassigned';
           }
         }
+        if (key !== 'Unassigned' && !sites.includes(key)) {
+          key = 'Unassigned';
+        }
       } else if (chartFilter === 'SUPPLIER') {
         if (t.supplier) {
           key = t.supplier;
@@ -195,6 +198,9 @@ export default function OwnerDashboardView({
               key = spentMatch[1];
             }
           }
+        }
+        if (key !== 'Other' && !suppliers.includes(key)) {
+          key = 'Other';
         }
       } else if (chartFilter === 'STAFF') {
         key = t.supervisorName || 'Unknown';

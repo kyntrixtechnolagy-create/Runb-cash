@@ -81,7 +81,7 @@ export default function SplashView({ onComplete }: SplashViewProps) {
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Secured & Safe Cash Manager</span>
           </div>
-          
+
           <div className="opacity-60">
             <p className="text-[10px] font-bold text-green-400/80 uppercase tracking-widest">Powered by Avigos Technologies</p>
           </div>
