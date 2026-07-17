@@ -1,6 +1,24 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import webpush from "npm:web-push";
 import { createClient } from "npm:@supabase/supabase-js";
+import admin from "npm:firebase-admin";
+
+// Initialize Firebase Admin if Service Account is provided
+let firebaseInitialized = false;
+try {
+  const serviceAccountStr = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
+  if (serviceAccountStr) {
+    const serviceAccount = JSON.parse(serviceAccountStr);
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+      });
+    }
+    firebaseInitialized = true;
+  }
+} catch (e) {
+  console.error("Failed to initialize Firebase Admin:", e);
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -50,15 +68,13 @@ serve(async (req) => {
     const vapidPublic = Deno.env.get('VAPID_PUBLIC_KEY');
     const vapidPrivate = Deno.env.get('VAPID_PRIVATE_KEY');
 
-    if (!vapidPublic || !vapidPrivate) {
-      throw new Error('VAPID keys are missing from Edge Function secrets.');
+    if (vapidPublic && vapidPrivate) {
+      webpush.setVapidDetails(
+        'mailto:admin@kyntrix.com',
+        vapidPublic,
+        vapidPrivate
+      );
     }
-
-    webpush.setVapidDetails(
-      'mailto:admin@kyntrix.com',
-      vapidPublic,
-      vapidPrivate
-    );
 
     const payload = JSON.stringify({
       title: title || 'New Notification',
@@ -66,21 +82,44 @@ serve(async (req) => {
       url: url || '/'
     });
 
-    const sendPromises = subscriptions.map(sub => 
-      webpush.sendNotification(
-        {
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dh,
-            auth: sub.auth
+    const sendPromises = subscriptions.map(sub => {
+      if (sub.auth === 'native') {
+        // Send via Firebase Cloud Messaging for Capacitor native apps
+        if (!firebaseInitialized) {
+          console.error("Firebase Admin not initialized. Please set FIREBASE_SERVICE_ACCOUNT in edge function secrets.");
+          return Promise.resolve();
+        }
+        return admin.messaging().send({
+          token: sub.endpoint,
+          notification: {
+            title: title || 'New Notification',
+            body: body || 'You have a new update in Runb-cash.'
+          },
+          data: {
+            url: url || '/'
           }
-        },
-        payload
-      ).catch(e => {
-        console.error('Failed to send to endpoint:', sub.endpoint, e);
-        // If gone (410), we could delete the subscription from the DB
-      })
-    );
+        }).catch((e: any) => console.error('FCM Error sending to token:', sub.endpoint, e));
+      } else {
+        // Send via Web Push for Browsers
+        if (!vapidPublic || !vapidPrivate) {
+          console.error('VAPID keys are missing for web push');
+          return Promise.resolve();
+        }
+        return webpush.sendNotification(
+          {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth
+            }
+          },
+          payload
+        ).catch(e => {
+          console.error('Failed to send to web endpoint:', sub.endpoint, e);
+          // If gone (410), we could delete the subscription from the DB
+        });
+      }
+    });
 
     await Promise.all(sendPromises);
 
