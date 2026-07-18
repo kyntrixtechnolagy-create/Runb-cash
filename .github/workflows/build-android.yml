@@ -24,6 +24,12 @@ jobs:
         run: npm ci || npm install
 
       - name: Build Web App
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_COMPANY_CODE: ${{ secrets.VITE_COMPANY_CODE }}
+          VITE_AUDITOR_CODE: ${{ secrets.VITE_AUDITOR_CODE }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
         run: npm run build
 
       - name: Setup Java
