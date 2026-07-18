@@ -24,13 +24,13 @@ jobs:
         run: npm ci || npm install
 
       - name: Build Web App
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_COMPANY_CODE: ${{ secrets.VITE_COMPANY_CODE }}
-          VITE_AUDITOR_CODE: ${{ secrets.VITE_AUDITOR_CODE }}
-          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VITE_VAPID_PUBLIC_KEY }}
-        run: npm run build
+        run: |
+          echo "VITE_SUPABASE_URL=https://vgdbrxyuxzjblevbxbpg.supabase.co" > .env.production
+          echo "VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZnZGJyeHl1eHpqYmxldmJ4YnBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4Mzc2OTMsImV4cCI6MjA5ODQxMzY5M30.0TSnxfW6eN4qmFdlXLFD2rVxW94Gvj9RZHHBHFyTsxY" >> .env.production
+          echo "VITE_COMPANY_CODE=cashflow123" >> .env.production
+          echo "VITE_AUDITOR_CODE=auditor123" >> .env.production
+          echo "VITE_VAPID_PUBLIC_KEY=BGcMzb3wbZ08rtGCVwKUzuMwgESTWXJlXN9L0CJxjCH_bii2I7yBmH82fdkiaM49YS46JYbQN8AVFe7dDfzz5bw" >> .env.production
+          npm run build
 
       - name: Setup Java
         uses: actions/setup-java@v3
