@@ -170,14 +170,20 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Subscribe to Push Notifications (Only if already granted)
+  // Subscribe to Push Notifications (Only if already granted on web, or natively on app)
   useEffect(() => {
     if (currentUser && currentUser.id) {
-      if ('Notification' in window && Notification.permission === 'granted') {
-        subscribeToPushNotifications(currentUser.id).catch(err => {
-          console.warn('Silent push subscription failed:', err);
-        });
-      }
+      import('@capacitor/core').then(({ Capacitor }) => {
+        if (Capacitor.isNativePlatform()) {
+          subscribeToPushNotifications(currentUser.id).catch(err => {
+            console.warn('Native push subscription failed:', err);
+          });
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+          subscribeToPushNotifications(currentUser.id).catch(err => {
+            console.warn('Silent web push subscription failed:', err);
+          });
+        }
+      });
     }
   }, [currentUser]);
 
