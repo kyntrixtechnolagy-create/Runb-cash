@@ -30,8 +30,6 @@ export const subscribeToPushNotifications = async (userId: string): Promise<{suc
         return { success: false, error: 'User denied push notification permissions' };
       }
 
-      await PushNotifications.register();
-
       return new Promise((resolve) => {
         PushNotifications.addListener('registration', async (token) => {
           const { error } = await supabase
@@ -55,6 +53,10 @@ export const subscribeToPushNotifications = async (userId: string): Promise<{suc
 
         PushNotifications.addListener('registrationError', (error: any) => {
           resolve({ success: false, error: error.message || 'Registration failed' });
+        });
+
+        PushNotifications.register().catch(e => {
+          resolve({ success: false, error: e.message || 'Register call failed' });
         });
       });
 
