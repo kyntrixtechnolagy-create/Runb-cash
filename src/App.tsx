@@ -178,13 +178,13 @@ export default function App() {
           subscribeToPushNotifications(currentUser.id)
             .then((res) => {
               if (!res.success) {
-                alert('Push Error: ' + res.error);
+                console.error('Push Error: ' + res.error);
               } else {
-                alert('Push registered successfully! Token sent to database.');
+                console.log('Push registered successfully! Token sent to database.');
               }
             })
             .catch(err => {
-              alert('Native push subscription failed: ' + err.message);
+              console.error('Native push subscription failed: ' + err.message);
             });
         } else if ('Notification' in window && Notification.permission === 'granted') {
           subscribeToPushNotifications(currentUser.id).catch(err => {
