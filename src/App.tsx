@@ -175,9 +175,17 @@ export default function App() {
     if (currentUser && currentUser.id) {
       import('@capacitor/core').then(({ Capacitor }) => {
         if (Capacitor.isNativePlatform()) {
-          subscribeToPushNotifications(currentUser.id).catch(err => {
-            console.warn('Native push subscription failed:', err);
-          });
+          subscribeToPushNotifications(currentUser.id)
+            .then((res) => {
+              if (!res.success) {
+                alert('Push Error: ' + res.error);
+              } else {
+                alert('Push registered successfully! Token sent to database.');
+              }
+            })
+            .catch(err => {
+              alert('Native push subscription failed: ' + err.message);
+            });
         } else if ('Notification' in window && Notification.permission === 'granted') {
           subscribeToPushNotifications(currentUser.id).catch(err => {
             console.warn('Silent web push subscription failed:', err);
