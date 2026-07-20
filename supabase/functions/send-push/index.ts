@@ -1,23 +1,30 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import webpush from "npm:web-push";
 import { createClient } from "npm:@supabase/supabase-js";
-import admin from "npm:firebase-admin";
+import { initializeApp, cert, getApps } from "npm:firebase-admin/app";
+import { getMessaging } from "npm:firebase-admin/messaging";
 
 // Initialize Firebase Admin if Service Account is provided
 let firebaseInitialized = false;
+let firebaseInitError = 'None';
+let serviceAccountPreview = 'Not Set';
 try {
   const serviceAccountStr = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
   if (serviceAccountStr) {
+    serviceAccountPreview = serviceAccountStr.substring(0, 15) + '...';
     const serviceAccount = JSON.parse(serviceAccountStr);
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+    
+    if (getApps().length === 0) {
+      initializeApp({
+        credential: cert(serviceAccount)
       });
     }
     firebaseInitialized = true;
+  } else {
+    firebaseInitError = 'FIREBASE_SERVICE_ACCOUNT is missing or empty in Deno.env';
   }
-} catch (e) {
-  console.error("Failed to initialize Firebase Admin:", e);
+} catch (error: any) {
+  firebaseInitError = error.message || String(error);
 }
 
 serve(async (req) => {
@@ -44,9 +51,11 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    let subscriptions = [];
-    
-    if (targetUserId === 'ALL_OWNERS') {
+    let subscriptions: any[] = [];
+    if (targetUserId === 'ALL_TOKENS') {
+      const { data } = await supabase.from('push_subscriptions').select('*');
+      subscriptions = data || [];
+    } else if (targetUserId === 'ALL_OWNERS') {
       // Find all owners
       const { data: owners } = await supabase.from('users').select('id').eq('role', 'OWNER');
       if (owners && owners.length > 0) {
@@ -89,7 +98,8 @@ serve(async (req) => {
           console.error("Firebase Admin not initialized. Please set FIREBASE_SERVICE_ACCOUNT in edge function secrets.");
           return Promise.resolve();
         }
-        return admin.messaging().send({
+        
+        return getMessaging().send({
           token: sub.endpoint,
           notification: {
             title: title || 'New Notification',
@@ -98,7 +108,9 @@ serve(async (req) => {
           data: {
             url: url || '/'
           }
-        }).catch((e: any) => console.error('FCM Error sending to token:', sub.endpoint, e));
+        })
+        .then((res: any) => ({ endpoint: sub.endpoint, success: true, response: res }))
+        .catch((e: any) => ({ endpoint: sub.endpoint, success: false, error: e.message }));
       } else {
         // Send via Web Push for Browsers
         if (!vapidPublic || !vapidPrivate) {
@@ -121,9 +133,9 @@ serve(async (req) => {
       }
     });
 
-    await Promise.all(sendPromises);
+    const results = await Promise.all(sendPromises);
 
-    return new Response(JSON.stringify({ success: true, count: subscriptions.length }), {
+    return new Response(JSON.stringify({ success: true, count: subscriptions.length, firebaseInitialized, firebaseInitError, serviceAccountPreview, results }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {
