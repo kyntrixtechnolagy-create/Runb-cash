@@ -52,10 +52,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let subscriptions: any[] = [];
-    if (targetUserId === 'ALL_TOKENS') {
-      const { data } = await supabase.from('push_subscriptions').select('*');
-      subscriptions = data || [];
-    } else if (targetUserId === 'ALL_OWNERS') {
+    
+    if (targetUserId === 'ALL_OWNERS') {
       // Find all owners
       const { data: owners } = await supabase.from('users').select('id').eq('role', 'OWNER');
       if (owners && owners.length > 0) {
@@ -135,7 +133,7 @@ serve(async (req) => {
 
     const results = await Promise.all(sendPromises);
 
-    return new Response(JSON.stringify({ success: true, count: subscriptions.length, firebaseInitialized, firebaseInitError, serviceAccountPreview, results }), {
+    return new Response(JSON.stringify({ success: true, count: subscriptions.length, firebaseInitialized }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (error: any) {
