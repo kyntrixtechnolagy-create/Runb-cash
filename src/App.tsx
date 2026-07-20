@@ -351,9 +351,11 @@ export default function App() {
   };
 
   const notifyOwners = async (title: string, body: string) => {
-    const owners = supervisors.filter(s => s.role === 'OWNER');
-    for (const owner of owners) {
-      await sendPushNotification(owner.id, title, body);
+    const { data: owners } = await supabase.from('users').select('id').eq('role', 'OWNER');
+    if (owners) {
+      for (const owner of owners) {
+        await sendPushNotification(owner.id, title, body);
+      }
     }
   };
 
