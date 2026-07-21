@@ -62,6 +62,8 @@ export default function App() {
 
   const [txSearchFilter, setTxSearchFilter] = useState<string>('');
   const [txCategoryFilter, setTxCategoryFilter] = useState<string>('ALL');
+  const [txStatusFilter, setTxStatusFilter] = useState<string>('ALL');
+  const [txTypeFilter, setTxTypeFilter] = useState<string>('ALL');
   const [txStartDate, setTxStartDate] = useState<string>('');
   const [txEndDate, setTxEndDate] = useState<string>('');
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme-preference') === 'dark');
@@ -1321,7 +1323,19 @@ export default function App() {
 
                       {activeScreen === 'SUPERVISOR_DASHBOARD' && (
                         <SupervisorDashboardView
-                          onViewLedgerClick={() => setActiveScreen('TRANSACTIONS')}
+                          onViewLedgerClick={(statusFilter = 'ALL', typeFilter = 'ALL', dateFilter = '') => {
+                            setTxStatusFilter(statusFilter);
+                            setTxTypeFilter(typeFilter);
+                            if (dateFilter === 'TODAY') {
+                              const today = new Date().toISOString().split('T')[0];
+                              setTxStartDate(today);
+                              setTxEndDate(today);
+                            } else {
+                              setTxStartDate('');
+                              setTxEndDate('');
+                            }
+                            setActiveScreen('TRANSACTIONS');
+                          }}
                           user={currentUser}
                           balance={activeSupBalance}
                           spendableCash={spendableCash}
@@ -1348,9 +1362,11 @@ export default function App() {
 
                       {activeScreen === 'TRANSACTIONS' && (
                         <TransactionsView
-                          key={`tx-${txSearchFilter}-${txCategoryFilter}-${txStartDate}-${txEndDate}`}
+                          key={`tx-${txSearchFilter}-${txCategoryFilter}-${txStatusFilter}-${txTypeFilter}-${txStartDate}-${txEndDate}`}
                           initialSearchTerm={txSearchFilter}
                           initialCategoryFilter={txCategoryFilter}
+                          initialStatusFilter={txStatusFilter}
+                          initialTypeFilter={txTypeFilter}
                           initialStartDate={txStartDate}
                           initialEndDate={txEndDate}
                           transactions={(currentUser.role === 'OWNER' || currentUser.role === 'AUDITOR') ? transactions : transactions.filter(t => t.supervisorId === currentUser.id)}

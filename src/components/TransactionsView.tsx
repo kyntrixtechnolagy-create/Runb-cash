@@ -33,6 +33,8 @@ interface TransactionsViewProps {
   onEditExpense?: (tx: Transaction) => void;
   initialSearchTerm?: string;
   initialCategoryFilter?: string;
+  initialStatusFilter?: string;
+  initialTypeFilter?: string;
   initialStartDate?: string;
   initialEndDate?: string;
   categories: { name: string, icon: string, color: string }[];
@@ -49,14 +51,16 @@ export default function TransactionsView({
   onEditExpense,
   initialSearchTerm = '',
   initialCategoryFilter = 'ALL',
+  initialStatusFilter = 'ALL',
+  initialTypeFilter = 'ALL',
   initialStartDate = '',
   initialEndDate = '',
   categories
 }: TransactionsViewProps) {
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm);
   const [selectedCategory, setSelectedCategory] = useState(initialCategoryFilter);
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  const [selectedType, setSelectedType] = useState('ALL'); // ALL, INCOME, EXPENSE
+  const [selectedStatus, setSelectedStatus] = useState(initialStatusFilter);
+  const [selectedType, setSelectedType] = useState(initialTypeFilter); // ALL, INCOME, EXPENSE
   const [startDate, setStartDate] = useState(initialStartDate);
   const [endDate, setEndDate] = useState(initialEndDate);
 

@@ -38,7 +38,7 @@ interface SupervisorDashboardViewProps {
   onDeclineTransfer?: (txId: string, userId: string) => void;
   onApproveAllocation?: (txId: string) => void;
   onRerequestAllocation?: (txId: string, note: string) => void;
-  onViewLedgerClick?: () => void;
+  onViewLedgerClick?: (statusFilter?: string, typeFilter?: string, dateFilter?: string) => void;
 }
 
 export default function SupervisorDashboardView({
@@ -202,7 +202,7 @@ export default function SupervisorDashboardView({
           <div className="grid grid-cols-2 gap-3">
             {/* Spent Today Card */}
             <div 
-              onClick={onViewLedgerClick}
+              onClick={() => onViewLedgerClick?.('APPROVED', 'EXPENSE', 'TODAY')}
               className={`p-4 rounded-2xl border transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
               }`}>
               <div className="flex items-center justify-between">
@@ -219,7 +219,7 @@ export default function SupervisorDashboardView({
 
             {/* Pending Claims Card */}
             <div 
-              onClick={onViewLedgerClick}
+              onClick={() => onViewLedgerClick?.('PENDING', 'EXPENSE', 'TODAY')}
               className={`p-4 rounded-2xl border transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
               }`}>
               <div className="flex items-center justify-between">
