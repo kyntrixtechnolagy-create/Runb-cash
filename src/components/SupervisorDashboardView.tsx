@@ -145,7 +145,7 @@ export default function SupervisorDashboardView({
             <div className="flex items-center justify-between mb-2">
               <div>
                 <h3 className="text-[10px] font-semibold tracking-wide uppercase text-teal-100">My Leftover Money</h3>
-                <h2 className="text-3xl font-display font-bold tracking-tight mt-0.5">
+                <h2 className="text-3xl font-display font-bold tracking-tight mt-0.5 whitespace-nowrap">
                   Rs. {availableCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </h2>
               </div>

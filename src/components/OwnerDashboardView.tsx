@@ -308,7 +308,7 @@ export default function OwnerDashboardView({
             <div className="flex items-center justify-between mb-1">
               <div>
                 <h3 className="text-[10px] font-bold tracking-wide uppercase text-blue-100 font-sans">Total Business Money Available</h3>
-                <h2 className="text-2xl font-display font-bold tracking-tight mt-0.5">
+                <h2 className="text-2xl font-display font-bold tracking-tight mt-0.5 whitespace-nowrap">
                   Rs. {liveTotalLiquidValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </h2>
               </div>
