@@ -201,7 +201,9 @@ export default function SupervisorDashboardView({
           {/* Numerical Metrics Cards Grid */}
           <div className="grid grid-cols-2 gap-3">
             {/* Spent Today Card */}
-            <div className={`p-4 rounded-2xl border transition-all-300 flex flex-col justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+            <div 
+              onClick={onViewLedgerClick}
+              className={`p-4 rounded-2xl border transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
               }`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Spent Today</span>
@@ -216,7 +218,9 @@ export default function SupervisorDashboardView({
             </div>
 
             {/* Pending Claims Card */}
-            <div className={`p-4 rounded-2xl border transition-all-300 flex flex-col justify-between ${darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'
+            <div 
+              onClick={onViewLedgerClick}
+              className={`p-4 rounded-2xl border transition-all-300 flex flex-col justify-between cursor-pointer ${darkMode ? 'bg-slate-900 border-slate-800 hover:bg-slate-800' : 'bg-white border-slate-100 hover:bg-slate-50'
               }`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Waiting Approval</span>
