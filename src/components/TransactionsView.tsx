@@ -305,7 +305,7 @@ export default function TransactionsView({
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[8px] font-bold">
                             <XCircle className="w-2 h-2" /> Rejected
                           </span>
-                          {isSupervisor && onEditExpense && (
+                          {isSupervisor && onEditExpense && tx.date === new Date().toISOString().split('T')[0] && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -323,13 +323,13 @@ export default function TransactionsView({
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-500 text-[8px] font-bold">
                             <AlertCircle className="w-2 h-2" /> Needs Correction
                           </span>
-                          {isSupervisor && onEditExpense && (
+                          {isSupervisor && onEditExpense && tx.date === new Date().toISOString().split('T')[0] && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onEditExpense(tx);
                               }}
-                              className="text-[8px] font-bold px-2 py-1 bg-rose-500 text-white rounded active:scale-95"
+                              className="text-[8px] font-bold px-2 py-1 bg-rose-500 text-white rounded active:scale-95 cursor-pointer"
                             >
                               Edit
                             </button>
